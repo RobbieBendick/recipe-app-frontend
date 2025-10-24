@@ -1,7 +1,8 @@
-export interface IRecipe {
+export interface Recipe {
   title: string;
   description: string;
   ingredients: Ingredient[];
+  createdAt?: Date;
 }
 
 export interface Ingredient {
@@ -28,4 +29,5 @@ export enum MeasurementUnit {
   WHOLE = 'whole',
   HALF = 'half',
   QUARTER = 'quarter',
+  BOTTLE = 'bottle',
 }

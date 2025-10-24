@@ -6,24 +6,43 @@ import {
   DialogActions,
   Button,
   Grid,
-  Typography,
   Card,
   CardContent,
   IconButton,
+  Typography,
   MenuItem,
+  Box,
 } from '@mui/material';
 import { useContext } from 'react';
-import * as yup from 'yup';
 import { useFormik, FormikProvider, FieldArray } from 'formik';
-import { IRecipe, MeasurementUnit } from '../../../schemas/schemas';
+import * as Yup from 'yup';
+import { Recipe, MeasurementUnit } from '@/schemas/schemas';
 import { RecipeContext } from '../recipe-context';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import IngredientField from '@/components/recipes/ingredient-field/ingredient-field';
 
 export function AddRecipeDialog() {
   const { toggleAddRecipeDialog, isAddRecipeDialogOpen } =
     useContext(RecipeContext);
+
+  const { savedRecipes, setSavedRecipes } = useContext(RecipeContext);
+
+  const validationSchema = Yup.object({
+    title: Yup.string()
+      .required('Recipe title is required')
+      .min(1, 'Recipe title must be at least 1 character'),
+    description: Yup.string(), // Optional field
+    ingredients: Yup.array()
+      .of(
+        Yup.object({
+          _id: Yup.number().required(),
+          title: Yup.string().required('Ingredient name is required'),
+          quantity: Yup.number().min(0.1, 'Quantity must be at least 0.1'),
+          measurement: Yup.string().required(),
+        })
+      )
+      .min(1, 'At least one ingredient is required'),
+  });
 
   const formik = useFormik({
     initialValues: {
@@ -38,26 +57,15 @@ export function AddRecipeDialog() {
         },
       ],
     },
-    validationSchema: yup.object({
-      title: yup.string().required('Title is required'),
-      description: yup.string().optional(),
-      ingredients: yup
-        .array()
-        .of(
-          yup.object({
-            _id: yup.number().required(),
-            title: yup.string().required('Ingredient title is required'),
-            quantity: yup.number().required('Quantity is required').positive(),
-            measurement: yup
-              .mixed<MeasurementUnit>()
-              .oneOf(Object.values(MeasurementUnit))
-              .required('Measurement unit is required'),
-          })
-        )
-        .min(1, 'At least one ingredient is required'),
-    }),
-    onSubmit: (values: IRecipe) => {
-      console.log('values: ', values);
+    validationSchema,
+    onSubmit: (values: Recipe) => {
+      const recipeWithTimestamp = {
+        ...values,
+        createdAt: new Date(),
+      };
+      setSavedRecipes([...savedRecipes, recipeWithTimestamp]);
+      formik.resetForm();
+      toggleAddRecipeDialog();
     },
   });
 
@@ -75,7 +83,7 @@ export function AddRecipeDialog() {
 
   const handleIngredientChange = (
     index: number,
-    field: keyof Omit<IRecipe['ingredients'][number], '_id'>,
+    field: keyof Omit<Recipe['ingredients'][number], '_id'>,
     value: unknown
   ) => {
     const newIngredients = [...formik.values.ingredients];
@@ -84,10 +92,12 @@ export function AddRecipeDialog() {
   };
 
   const handleRemoveIngredient = (index: number) => {
-    const newIngredients = formik.values.ingredients.filter(
-      (_, i) => i !== index
-    );
-    formik.setFieldValue('ingredients', newIngredients);
+    if (formik.values.ingredients.length > 1) {
+      const newIngredients = formik.values.ingredients.filter(
+        (_, i) => i !== index
+      );
+      formik.setFieldValue('ingredients', newIngredients);
+    }
   };
 
   return (
@@ -99,15 +109,21 @@ export function AddRecipeDialog() {
             <Grid container spacing={2} justifyContent='center'>
               <Grid item xs={12}>
                 <TextField
-                  label='Recipe Title'
+                  label={
+                    <span>
+                      Recipe Title <span style={{ color: 'red' }}>*</span>
+                    </span>
+                  }
                   name='title'
                   value={formik.values.title}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
                   error={formik.touched.title && Boolean(formik.errors.title)}
                   helperText={formik.touched.title && formik.errors.title}
-                  onChange={formik.handleChange}
                   autoFocus
                   margin='dense'
                   fullWidth
+                  placeholder='Enter a recipe title...'
                 />
               </Grid>
               <Grid item xs={12}>
@@ -115,13 +131,6 @@ export function AddRecipeDialog() {
                   label='Description'
                   name='description'
                   value={formik.values.description}
-                  error={
-                    formik.touched.description &&
-                    Boolean(formik.errors.description)
-                  }
-                  helperText={
-                    formik.touched.description && formik.errors.description
-                  }
                   onChange={formik.handleChange}
                   margin='dense'
                   multiline
@@ -129,100 +138,336 @@ export function AddRecipeDialog() {
                   fullWidth
                 />
               </Grid>
-              <Grid item xs={12}>
-                <Typography
-                  variant='h6'
-                  fontWeight={500}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  Ingredients
-                  <IconButton
-                    onClick={handleAddIngredient}
-                    sx={{ marginLeft: 'auto' }}
+              <Grid
+                container
+                spacing={2}
+                marginBlock={2}
+                ml={0.5}
+                justifyContent='space-between'
+                alignItems='center'
+              >
+                <Grid item xs={6}>
+                  <Typography
+                    textAlign='left'
+                    fontWeight={400}
+                    fontSize='1.2rem'
                   >
-                    <AddIcon />
-                  </IconButton>
-                </Typography>
+                    Ingredients
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} textAlign='right'>
+                  <Button
+                    variant='outlined'
+                    color='primary'
+                    startIcon={<AddIcon />}
+                    onClick={handleAddIngredient}
+                  >
+                    Add Ingredient
+                  </Button>
+                </Grid>
               </Grid>
+
               <FieldArray name='ingredients'>
                 {() => (
                   <>
-                    {formik.values.ingredients.map((ingredient, index) => (
-                      <Grid item xs={12} md={6} key={ingredient._id}>
-                        <Card
-                          sx={{
-                            position: 'relative',
-                            paddingBlock: 2,
-                            flexDirection: 'column',
-                            borderRadius: '20px',
-                          }}
+                    {formik.errors.ingredients &&
+                      typeof formik.errors.ingredients === 'string' && (
+                        <Typography
+                          color='error'
+                          variant='body2'
+                          sx={{ mb: 1 }}
                         >
-                          <IconButton
-                            onClick={() => handleRemoveIngredient(index)}
-                            color='error'
+                          {formik.errors.ingredients}
+                        </Typography>
+                      )}
+                    <Grid
+                      ml={0}
+                      container
+                      spacing={2}
+                      justifyContent='flex-start'
+                    >
+                      {formik.values.ingredients.map((ingredient, index) => (
+                        <Grid item xs={12} sm={6} key={ingredient._id}>
+                          <Card
+                            elevation={2}
                             sx={{
-                              position: 'absolute',
-                              top: 8,
-                              right: 8,
+                              borderRadius: '16px',
+                              position: 'relative',
+                              border: '1px solid grey',
+                              transition: 'all 0.2s ease-in-out',
                             }}
                           >
-                            <DeleteIcon />
-                          </IconButton>
-                          <CardContent>
-                            <Grid container spacing={2}>
-                              <IngredientField />
-                              <Grid item xs={6}>
-                                <TextField
-                                  label='Quantity'
-                                  type='number'
-                                  value={ingredient.quantity}
-                                  onChange={e =>
-                                    handleIngredientChange(
-                                      index,
-                                      'quantity',
-                                      Number(e.target.value)
-                                    )
-                                  }
-                                  margin='dense'
-                                  fullWidth
-                                />
+                            {/* Header with ingredient number and delete button */}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                alignItems: 'center',
+                                borderBottom: '1px solid grey',
+                                px: 2,
+                                py: 0.5,
+                              }}
+                            >
+                              <IconButton
+                                onClick={() => handleRemoveIngredient(index)}
+                                color='error'
+                                size='medium'
+                                sx={{
+                                  '&:hover': {
+                                    backgroundColor: 'error.light',
+                                    color: 'white',
+                                    ml: 'auto',
+                                  },
+                                }}
+                              >
+                                <DeleteIcon fontSize='small' />
+                              </IconButton>
+                            </Box>
+
+                            <CardContent sx={{ p: 3 }}>
+                              <Grid container spacing={3}>
+                                {/* Ingredient Name - Full Width */}
+                                <Grid item xs={12}>
+                                  <TextField
+                                    label={
+                                      <span>
+                                        Ingredient Name{' '}
+                                        <span style={{ color: 'red' }}>*</span>
+                                      </span>
+                                    }
+                                    value={ingredient.title}
+                                    onChange={e =>
+                                      handleIngredientChange(
+                                        index,
+                                        'title',
+                                        e.target.value
+                                      )
+                                    }
+                                    onBlur={formik.handleBlur}
+                                    error={
+                                      formik.touched.ingredients?.[index]
+                                        ?.title &&
+                                      Boolean(
+                                        formik.errors.ingredients?.[index] &&
+                                          typeof formik.errors.ingredients[
+                                            index
+                                          ] === 'object' &&
+                                          'title' in
+                                            formik.errors.ingredients[index] &&
+                                          formik.errors.ingredients[index].title
+                                      )
+                                    }
+                                    helperText={
+                                      formik.touched.ingredients?.[index]
+                                        ?.title &&
+                                      formik.errors.ingredients?.[index] &&
+                                      typeof formik.errors.ingredients[
+                                        index
+                                      ] === 'object' &&
+                                      'title' in
+                                        formik.errors.ingredients[index] &&
+                                      formik.errors.ingredients[index].title
+                                    }
+                                    margin='normal'
+                                    fullWidth
+                                    placeholder='Flour, Sugar, etc.'
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: '8px',
+                                      },
+                                    }}
+                                  />
+                                </Grid>
+
+                                {/* Quantity and Measurement - Side by Side */}
+                                <Grid item xs={6}>
+                                  <TextField
+                                    label='Quantity'
+                                    type='number'
+                                    value={ingredient.quantity}
+                                    onChange={e => {
+                                      const newValue = Math.max(
+                                        0.1,
+                                        parseFloat(e.target.value) || 0
+                                      );
+                                      handleIngredientChange(
+                                        index,
+                                        'quantity',
+                                        newValue
+                                      );
+                                    }}
+                                    onBlur={formik.handleBlur}
+                                    error={
+                                      formik.touched.ingredients?.[index]
+                                        ?.quantity &&
+                                      Boolean(
+                                        formik.errors.ingredients?.[index] &&
+                                          typeof formik.errors.ingredients[
+                                            index
+                                          ] === 'object' &&
+                                          'quantity' in
+                                            formik.errors.ingredients[index] &&
+                                          formik.errors.ingredients[index]
+                                            .quantity
+                                      )
+                                    }
+                                    helperText={
+                                      formik.touched.ingredients?.[index]
+                                        ?.quantity &&
+                                      formik.errors.ingredients?.[index] &&
+                                      typeof formik.errors.ingredients[
+                                        index
+                                      ] === 'object' &&
+                                      'quantity' in
+                                        formik.errors.ingredients[index] &&
+                                      formik.errors.ingredients[index].quantity
+                                    }
+                                    margin='normal'
+                                    fullWidth
+                                    inputProps={{ min: 0.1, step: 0.1 }}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: '8px',
+                                      },
+                                    }}
+                                  />
+                                </Grid>
+                                <Grid item xs={6}>
+                                  <TextField
+                                    select
+                                    label='Measurement'
+                                    value={ingredient.measurement}
+                                    onChange={e =>
+                                      handleIngredientChange(
+                                        index,
+                                        'measurement',
+                                        e.target.value as MeasurementUnit
+                                      )
+                                    }
+                                    onBlur={formik.handleBlur}
+                                    error={
+                                      formik.touched.ingredients?.[index]
+                                        ?.measurement &&
+                                      Boolean(
+                                        formik.errors.ingredients?.[index] &&
+                                          typeof formik.errors.ingredients[
+                                            index
+                                          ] === 'object' &&
+                                          'measurement' in
+                                            formik.errors.ingredients[index] &&
+                                          formik.errors.ingredients[index]
+                                            .measurement
+                                      )
+                                    }
+                                    helperText={
+                                      formik.touched.ingredients?.[index]
+                                        ?.measurement &&
+                                      formik.errors.ingredients?.[index] &&
+                                      typeof formik.errors.ingredients[
+                                        index
+                                      ] === 'object' &&
+                                      'measurement' in
+                                        formik.errors.ingredients[index] &&
+                                      formik.errors.ingredients[index]
+                                        .measurement
+                                    }
+                                    margin='normal'
+                                    fullWidth
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        borderRadius: '8px',
+                                      },
+                                    }}
+                                  >
+                                    {Object.values(MeasurementUnit).map(
+                                      unit => (
+                                        <MenuItem key={unit} value={unit}>
+                                          {unit}
+                                        </MenuItem>
+                                      )
+                                    )}
+                                  </TextField>
+                                </Grid>
                               </Grid>
-                              <Grid item xs={6}>
-                                <TextField
-                                  select
-                                  label='Measurement'
-                                  value={ingredient.measurement}
-                                  onChange={e =>
-                                    handleIngredientChange(
-                                      index,
-                                      'measurement',
-                                      e.target.value as MeasurementUnit
-                                    )
-                                  }
-                                  margin='dense'
-                                  fullWidth
-                                >
-                                  {Object.values(MeasurementUnit).map(unit => (
-                                    <MenuItem key={unit} value={unit}>
-                                      {unit}
-                                    </MenuItem>
-                                  ))}
-                                </TextField>
-                              </Grid>
-                            </Grid>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
                   </>
                 )}
               </FieldArray>
             </Grid>
+            {(() => {
+              const missingRequirements = [];
+
+              // Check if title is missing
+              if (!formik.values.title.trim()) {
+                missingRequirements.push('Recipe title');
+              }
+
+              // Check if there are no ingredients at all
+              if (formik.values.ingredients.length === 0) {
+                missingRequirements.push('At least 1 ingredient');
+              }
+
+              // Check if any ingredient is incomplete (has name but missing other fields)
+              const hasIncompleteIngredient = formik.values.ingredients.some(
+                ingredient =>
+                  ingredient.title.trim() === '' ||
+                  ingredient.quantity <= 0 ||
+                  !ingredient.measurement
+              );
+
+              // Check if any ingredient is partially filled (has some fields but not all)
+              if (hasIncompleteIngredient) {
+                missingRequirements.push(
+                  'Each ingredient must be fully filled out'
+                );
+              }
+
+              // Only show requirements if something is missing
+              if (missingRequirements.length > 0) {
+                return (
+                  <Box
+                    sx={{
+                      marginTop: '20px',
+                      marginBottom: '10px',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <Typography
+                      variant='body2'
+                      color='error'
+                      sx={{ fontWeight: 600, mb: 1 }}
+                    >
+                      Required
+                    </Typography>
+                    {missingRequirements.map((requirement, index) => (
+                      <Typography
+                        key={index}
+                        variant='body2'
+                        color='error'
+                        sx={{ ml: 0, fontStyle: 'italic' }}
+                      >
+                        • {requirement}
+                      </Typography>
+                    ))}
+                  </Box>
+                );
+              }
+
+              return null;
+            })()}
             <DialogActions sx={{ marginTop: '30px', gap: '5px' }}>
               <Button variant='contained' onClick={toggleAddRecipeDialog}>
                 Cancel
               </Button>
-              <Button variant='contained' type='submit'>
+              <Button
+                variant='contained'
+                type='submit'
+                disabled={!formik.isValid || !formik.dirty}
+              >
                 Save
               </Button>
             </DialogActions>
