@@ -408,6 +408,255 @@ class KrogerAPIService {
       'Both environments failed. Please check your application status in the Kroger Developer Portal.'
     );
   }
+
+  // Fetch common ingredient costs and populate database
+  async fetchCommonIngredientCosts(locationId?: string): Promise<{
+    success: number;
+    failed: number;
+    ingredients: Array<{
+      name: string;
+      costPerGram: number;
+      brand: string;
+      size: string;
+      price: number;
+    }>;
+  }> {
+    const commonIngredients = [
+      'bread',
+      'eggs',
+      'milk',
+      'flour',
+      'sugar',
+      'butter',
+      'cheese',
+      'chicken',
+      'beef',
+      'rice',
+      'pasta',
+      'oil',
+      'salt',
+      'pepper',
+      'onions',
+      'garlic',
+      'tomatoes',
+      'potatoes',
+      'bananas',
+      'apples',
+    ];
+
+    const results = {
+      success: 0,
+      failed: 0,
+      ingredients: [] as Array<{
+        name: string;
+        costPerGram: number;
+        brand: string;
+        size: string;
+        price: number;
+      }>,
+    };
+
+    console.log('🛒 Fetching common ingredient costs from Kroger...');
+
+    for (const ingredient of commonIngredients) {
+      try {
+        console.log(`Searching for: ${ingredient}`);
+
+        // Search for the ingredient
+        const searchResults = await this.searchProducts({
+          term: ingredient,
+          locationId,
+          limit: 5, // Get top 5 results to find the cheapest
+        });
+
+        if (searchResults.products.length === 0) {
+          console.log(`❌ No results for ${ingredient}`);
+          results.failed++;
+          continue;
+        }
+
+        console.log(
+          `\n📋 Found ${searchResults.products.length} options for ${ingredient}:`
+        );
+        searchResults.products.forEach((product, index) => {
+          console.log(
+            `  ${index + 1}. ${product.brand} ${product.description}`
+          );
+          console.log(
+            `     Size: "${product.size}" | Price: $${
+              product.price?.regular || 'N/A'
+            }`
+          );
+        });
+
+        // Find the cheapest option with valid weight data
+        let cheapestProduct: KrogerProductSummary | null = null;
+        let lowestCostPerGram = Infinity;
+        let bestWeight = 0;
+
+        for (const product of searchResults.products) {
+          if (!product.price?.regular || !product.size) {
+            console.log(`⚠️ Skipping ${product.brand} - missing price or size`);
+            continue;
+          }
+
+          // Try to extract weight from size string
+          const weightInGrams = this.parseWeightFromSize(product.size);
+          if (weightInGrams <= 0) {
+            console.log(
+              `⚠️ Skipping ${product.brand} ${product.size} - no weight data`
+            );
+            continue;
+          }
+
+          const costPerGram = product.price.regular / weightInGrams;
+          console.log(
+            `💰 ${product.brand}: $${
+              product.price.regular
+            } / ${weightInGrams}g = $${costPerGram.toFixed(6)}/gram`
+          );
+
+          if (costPerGram < lowestCostPerGram) {
+            lowestCostPerGram = costPerGram;
+            cheapestProduct = product;
+            bestWeight = weightInGrams;
+            console.log(`🏆 New cheapest option!`);
+          }
+        }
+
+        if (cheapestProduct && cheapestProduct.price?.regular) {
+          const costPerGram = cheapestProduct.price.regular / bestWeight;
+
+          results.ingredients.push({
+            name: ingredient,
+            costPerGram,
+            brand: cheapestProduct.brand || 'Unknown',
+            size: cheapestProduct.size,
+            price: cheapestProduct.price.regular,
+          });
+
+          console.log(
+            `✅ ${ingredient}: $${costPerGram.toFixed(6)}/gram (${
+              cheapestProduct.brand
+            } ${cheapestProduct.size} = ${bestWeight}g)`
+          );
+          results.success++;
+        } else {
+          console.log(
+            `❌ No valid weight data for ${ingredient} - tried ${searchResults.products.length} products`
+          );
+          results.failed++;
+        }
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error(`❌ Error fetching ${ingredient}:`, error);
+        results.failed++;
+      }
+    }
+
+    console.log(
+      `\n📊 Results: ${results.success} successful, ${results.failed} failed`
+    );
+
+    // Print summary of all collected ingredient costs
+    if (results.ingredients.length > 0) {
+      console.log('\n🍽️ INGREDIENT COST SUMMARY:');
+      console.log('='.repeat(50));
+      results.ingredients.forEach((ingredient, index) => {
+        console.log(`${index + 1}. ${ingredient.name.toUpperCase()}`);
+        console.log(`   Cost per gram: $${ingredient.costPerGram.toFixed(6)}`);
+        console.log(`   Brand: ${ingredient.brand}`);
+        console.log(`   Size: ${ingredient.size}`);
+        console.log(`   Price: $${ingredient.price.toFixed(2)}`);
+        console.log(
+          `   Cost per lb: $${(ingredient.costPerGram * 453.592).toFixed(2)}`
+        );
+        console.log(
+          `   Cost per oz: $${(ingredient.costPerGram * 28.3495).toFixed(4)}`
+        );
+        console.log('');
+      });
+      console.log('='.repeat(50));
+    }
+
+    return results;
+  }
+
+  // Parse weight from size string (e.g., "1 lb" -> 453.592)
+  private parseWeightFromSize(size: string): number {
+    const sizeStr = size.toLowerCase();
+    console.log(`🔍 Parsing weight from: "${size}"`);
+
+    // Try multiple patterns to extract weight
+    const patterns = [
+      // Standard patterns: "1 lb", "16 oz", "500g"
+      /(\d+(?:\.\d+)?)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)/,
+      // Patterns with extra text: "1 lb loaf", "16 oz bottle"
+      /(\d+(?:\.\d+)?)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)\s+\w+/,
+      // Patterns with fractions: "1/2 lb", "0.5 lb"
+      /(\d+(?:\.\d+)?|\d+\/\d+)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)/,
+    ];
+
+    for (const pattern of patterns) {
+      const match = sizeStr.match(pattern);
+      if (match) {
+        let quantity: number;
+        const quantityStr = match[1];
+
+        // Handle fractions
+        if (quantityStr.includes('/')) {
+          const [numerator, denominator] = quantityStr.split('/').map(Number);
+          quantity = numerator / denominator;
+        } else {
+          quantity = parseFloat(quantityStr);
+        }
+
+        const unit = match[2];
+
+        const conversions: Record<string, number> = {
+          g: 1,
+          gram: 1,
+          kg: 1000,
+          kilogram: 1000,
+          lb: 453.592,
+          pound: 453.592,
+          oz: 28.3495,
+          ounce: 28.3495,
+        };
+
+        const weightInGrams = quantity * (conversions[unit] || 0);
+        console.log(`✅ Parsed: ${quantity} ${unit} = ${weightInGrams}g`);
+        return weightInGrams;
+      }
+    }
+
+    // If no weight pattern matches, try to estimate from common sizes
+    const commonSizes: Record<string, number> = {
+      dozen: 12 * 50, // 12 eggs * ~50g each
+      count: 100, // Generic count item
+      each: 100, // Generic each item
+      bunch: 200, // Generic bunch
+      head: 500, // Generic head (lettuce, cabbage)
+      loaf: 500, // Generic loaf
+      bottle: 500, // Generic bottle
+      can: 400, // Generic can
+      jar: 300, // Generic jar
+      bag: 1000, // Generic bag
+      box: 200, // Generic box
+    };
+
+    for (const [sizeKey, estimatedWeight] of Object.entries(commonSizes)) {
+      if (sizeStr.includes(sizeKey)) {
+        console.log(`📦 Estimated from "${sizeKey}": ${estimatedWeight}g`);
+        return estimatedWeight;
+      }
+    }
+
+    console.log(`❌ Could not parse weight from: "${size}"`);
+    return 0;
+  }
 }
 
 export const krogerAPI = new KrogerAPIService();

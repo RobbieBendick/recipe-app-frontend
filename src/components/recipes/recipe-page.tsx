@@ -234,22 +234,26 @@ export function RecipePage() {
   }
 
   return (
-    <Box marginTop='20px'>
-      {/* Header with back button and action buttons */}
+    <Box>
+      {/* Header with back button */}
+      <Box marginBottom='20px' mb={3}>
+        <Button
+          variant='outlined'
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/recipes')}
+        >
+          Back to Recipes
+        </Button>
+      </Box>
+
+      {/* Title and action buttons row */}
       <Box
         display='flex'
         alignItems='center'
         justifyContent='space-between'
         marginBottom='30px'
       >
-        <Box display='flex' alignItems='center' gap={2}>
-          <Button
-            variant='outlined'
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/recipes')}
-          >
-            Back to Recipes
-          </Button>
+        <Box sx={{ flex: 1 }}>
           {isEditMode ? (
             <TextField
               value={editTitle}

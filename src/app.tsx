@@ -4,6 +4,8 @@ import { grey } from '@mui/material/colors';
 import { createContext, useEffect, useMemo, useState } from 'react';
 import { BindRoutes } from './components/routes/bind-routes';
 import { BrowserRouter } from 'react-router-dom';
+import { KrogerProvider } from './contexts/kroger-context';
+import { KrogerStatus } from './components/kroger-status/kroger-status';
 
 const getDesignTokens = (mode: PaletteMode) => ({
   palette: {
@@ -92,9 +94,12 @@ function App() {
     >
       <ColorModeContext.Provider value={colorMode}>
         <ThemeProvider theme={theme}>
-          <BrowserRouter>
-            <BindRoutes />
-          </BrowserRouter>
+          <KrogerProvider>
+            <BrowserRouter>
+              <BindRoutes />
+              <KrogerStatus />
+            </BrowserRouter>
+          </KrogerProvider>
         </ThemeProvider>
       </ColorModeContext.Provider>
     </main>

@@ -12,40 +12,26 @@ import {
   Chip,
   Divider,
 } from '@mui/material';
-import { krogerAPI } from '../../services/kroger-api';
+import { useKroger } from '../../contexts/kroger-context';
 import { KrogerProductSearch } from '../kroger-product-search/kroger-product-search';
 import { KrogerProductDetails } from '../kroger-product-details/kroger-product-details';
 import type { KrogerProductSummary } from '../../types/kroger-api';
 
 export const KrogerTest: React.FC = () => {
-  const [connectionStatus, setConnectionStatus] = useState<
-    'idle' | 'testing' | 'success' | 'error'
-  >('idle');
-  const [error, setError] = useState<string | null>(null);
+  const {
+    isConnected,
+    isConnecting,
+    connectionError,
+    testConnection,
+    clearError,
+  } = useKroger();
   const [selectedProduct, setSelectedProduct] =
     useState<KrogerProductSummary | null>(null);
   const [locationId, setLocationId] = useState('');
 
-  const testConnection = async () => {
-    setConnectionStatus('testing');
-    setError(null);
-
-    try {
-      // Test both environments
-      console.log('Testing both Kroger API environments...');
-      await krogerAPI.testBothEnvironments();
-
-      const isConnected = await krogerAPI.testConnection();
-      setConnectionStatus(isConnected ? 'success' : 'error');
-      if (!isConnected) {
-        setError(
-          'Failed to connect to Kroger API. Please check your credentials.'
-        );
-      }
-    } catch (err) {
-      setConnectionStatus('error');
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    }
+  const handleTestConnection = async () => {
+    clearError();
+    await testConnection();
   };
 
   const handleProductSelect = (product: KrogerProductSummary) => {
@@ -53,44 +39,21 @@ export const KrogerTest: React.FC = () => {
   };
 
   const getStatusColor = () => {
-    switch (connectionStatus) {
-      case 'success':
-        return 'success';
-      case 'error':
-        return 'error';
-      case 'testing':
-        return 'info';
-      default:
-        return 'default';
-    }
+    if (isConnecting) return 'info';
+    if (isConnected) return 'success';
+    if (connectionError) return 'error';
+    return 'default';
   };
 
   const getStatusText = () => {
-    switch (connectionStatus) {
-      case 'success':
-        return 'Connected to Kroger API';
-      case 'error':
-        return 'Connection Failed';
-      case 'testing':
-        return 'Testing Connection...';
-      default:
-        return 'Not Tested';
-    }
+    if (isConnecting) return 'Testing Connection...';
+    if (isConnected) return 'Connected to Kroger API';
+    if (connectionError) return 'Connection Failed';
+    return 'Not Tested';
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant='h4' gutterBottom>
-        Kroger API Integration Test
-      </Typography>
-
-      <Typography variant='body1' color='text.secondary' sx={{ mb: 3 }}>
-        Test the Kroger API integration with your application. Make sure you
-        have set up your VITE_KROGER_CLIENT_ID and VITE_KROGER_CLIENT_SECRET
-        environment variables.
-      </Typography>
-
-      {/* Connection Test */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant='h6' gutterBottom>
@@ -100,33 +63,29 @@ export const KrogerTest: React.FC = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Button
               variant='contained'
-              onClick={testConnection}
-              disabled={connectionStatus === 'testing'}
+              onClick={handleTestConnection}
+              disabled={isConnecting}
               startIcon={
-                connectionStatus === 'testing' ? (
-                  <CircularProgress size={20} />
-                ) : undefined
+                isConnecting ? <CircularProgress size={20} /> : undefined
               }
             >
-              {connectionStatus === 'testing'
-                ? 'Testing...'
-                : 'Test Connection'}
+              {isConnecting ? 'Testing...' : 'Test Connection'}
             </Button>
 
             <Chip
               label={getStatusText()}
               color={getStatusColor()}
-              variant={connectionStatus === 'idle' ? 'outlined' : 'filled'}
+              variant={isConnected ? 'filled' : 'outlined'}
             />
           </Box>
 
-          {error && (
+          {connectionError && (
             <Alert severity='error' sx={{ mt: 2 }}>
-              {error}
+              {connectionError}
             </Alert>
           )}
 
-          {connectionStatus === 'success' && (
+          {isConnected && (
             <Alert severity='success' sx={{ mt: 2 }}>
               Successfully connected to Kroger API! You can now search for
               products.
@@ -162,9 +121,9 @@ export const KrogerTest: React.FC = () => {
       <Divider sx={{ my: 3 }} />
 
       {/* Product Search */}
-      {connectionStatus === 'success' && (
+      {isConnected && (
         <Box>
-          <Typography variant='h5' gutterBottom>
+          <Typography variant='h5' gutterBottom color='text.primary'>
             Product Search
           </Typography>
 

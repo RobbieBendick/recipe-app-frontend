@@ -152,10 +152,6 @@ export const KrogerProductSearch: React.FC<KrogerProductSearchProps> = ({
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant='h5' gutterBottom>
-        Search Kroger Products
-      </Typography>
-
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={4}>
           <TextField

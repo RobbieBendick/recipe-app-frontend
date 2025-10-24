@@ -9,4 +9,5 @@ export const ROUTE_PATHS: { [key: string]: string } = {
   recentGroceryLists: '/recent-grocery-lists',
   createGroceryList: '/create-grocery-list',
   krogerTest: '/kroger-test',
+  ingredientCosts: '/ingredient-costs',
 };
