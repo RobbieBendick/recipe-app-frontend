@@ -12,6 +12,7 @@ import { RecipeContext } from './recipe-context';
 import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AddRecipeDialog } from './dialogs/add-recipe-dialog';
+import { pluralizeMeasurement } from '../../helpers/helpers';
 
 export function Recipes() {
   const theme = useTheme();
@@ -68,6 +69,23 @@ export function Recipes() {
                 },
                 overflow: 'hidden',
                 cursor: 'pointer',
+                backgroundImage: recipe.image ? `url(${recipe.image})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                position: 'relative',
+                '&::before': recipe.image
+                  ? {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                      zIndex: 1,
+                    }
+                  : {},
               }}
             >
               <CardActionArea
@@ -80,6 +98,12 @@ export function Recipes() {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
+                    position: 'relative',
+                    zIndex: 2,
+                    color: recipe.image ? 'white' : 'inherit',
+                    background: recipe.image
+                      ? 'linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.8), rgba(0,0,0,1))'
+                      : 'transparent',
                   }}
                 >
                   {/* Recipe Header */}
@@ -89,7 +113,7 @@ export function Recipes() {
                       gutterBottom
                       sx={{
                         fontWeight: 600,
-                        color: 'primary.main',
+                        color: 'text.primary',
                         lineHeight: 1.2,
                       }}
                     >
@@ -119,7 +143,6 @@ export function Recipes() {
                       sx={{
                         fontWeight: 600,
                         color: 'text.primary',
-                        mb: 1.5,
                       }}
                     >
                       Ingredients:
@@ -148,7 +171,11 @@ export function Recipes() {
                               fontSize: '0.875rem',
                             }}
                           >
-                            • {ingredient.quantity} {ingredient.measurement}{' '}
+                            • {ingredient.quantity}{' '}
+                            {pluralizeMeasurement(
+                              ingredient.quantity,
+                              ingredient.measurement
+                            )}{' '}
                             <span
                               style={{
                                 fontWeight: 500,

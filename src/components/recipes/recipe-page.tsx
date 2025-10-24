@@ -11,12 +11,24 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
+  IconButton,
+  MenuItem,
+  Avatar,
 } from '@mui/material';
 import { RecipeContext } from './recipe-context';
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Ingredient, MeasurementUnit } from '../../schemas/schemas';
+import { pluralizeMeasurement } from '../../helpers/helpers';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import AddIcon from '@mui/icons-material/Add';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 
 export function RecipePage() {
   const navigate = useNavigate();
@@ -24,6 +36,17 @@ export function RecipePage() {
   const { savedRecipes, setSavedRecipes } = useContext(RecipeContext);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteIngredientDialogOpen, setDeleteIngredientDialogOpen] =
+    useState(false);
+  const [exitEditDialogOpen, setExitEditDialogOpen] = useState(false);
+  const [ingredientToDelete, setIngredientToDelete] = useState<number | null>(
+    null
+  );
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIngredients, setEditIngredients] = useState<Ingredient[]>([]);
+  const [editImage, setEditImage] = useState<string>('');
 
   const recipeIndex = parseInt(recipeId || '0', 10);
   const recipe = savedRecipes[recipeIndex];
@@ -45,6 +68,154 @@ export function RecipePage() {
     setDeleteDialogOpen(false);
   };
 
+  const handleEditClick = () => {
+    setIsEditMode(true);
+    setEditTitle(recipe.title);
+    setEditDescription(recipe.description || '');
+    setEditIngredients([...recipe.ingredients]);
+    setEditImage(recipe.image || '');
+  };
+
+  const handleSaveEdit = () => {
+    const updatedRecipes = [...savedRecipes];
+    updatedRecipes[recipeIndex] = {
+      ...recipe,
+      title: editTitle,
+      description: editDescription,
+      ingredients: editIngredients,
+      image: editImage,
+      lastUpdated: new Date(),
+    };
+    setSavedRecipes(updatedRecipes);
+    setIsEditMode(false);
+  };
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditMode(false);
+    setEditTitle('');
+    setEditDescription('');
+    setEditIngredients([]);
+    setEditImage('');
+  }, []);
+
+  const hasUnsavedChanges = useCallback(() => {
+    if (!recipe) return false;
+
+    return (
+      editTitle !== recipe.title ||
+      editDescription !== (recipe.description || '') ||
+      JSON.stringify(editIngredients) !== JSON.stringify(recipe.ingredients)
+    );
+  }, [recipe, editTitle, editDescription, editIngredients]);
+
+  const handleExitEditMode = useCallback(() => {
+    if (hasUnsavedChanges()) {
+      setExitEditDialogOpen(true);
+    } else {
+      handleCancelEdit();
+    }
+  }, [hasUnsavedChanges, handleCancelEdit]);
+
+  const handleExitEditConfirm = () => {
+    setExitEditDialogOpen(false);
+    handleCancelEdit();
+  };
+
+  const handleExitEditSave = () => {
+    setExitEditDialogOpen(false);
+    handleSaveEdit();
+  };
+
+  const handleExitEditCancel = () => {
+    setExitEditDialogOpen(false);
+  };
+
+  const handleAddIngredient = () => {
+    const newIngredient: Ingredient = {
+      _id: Date.now(), // Simple ID generation
+      title: '',
+      quantity: 0,
+      measurement: MeasurementUnit.WHOLE,
+    };
+    setEditIngredients([...editIngredients, newIngredient]);
+  };
+
+  const handleRemoveIngredient = (index: number) => {
+    setIngredientToDelete(index);
+    setDeleteIngredientDialogOpen(true);
+  };
+
+  const handleConfirmDeleteIngredient = () => {
+    if (ingredientToDelete !== null) {
+      const newIngredients = editIngredients.filter(
+        (_, i) => i !== ingredientToDelete
+      );
+      setEditIngredients(newIngredients);
+    }
+    setDeleteIngredientDialogOpen(false);
+    setIngredientToDelete(null);
+  };
+
+  const handleCancelDeleteIngredient = () => {
+    setDeleteIngredientDialogOpen(false);
+    setIngredientToDelete(null);
+  };
+
+  const handleIngredientChange = (
+    index: number,
+    field: string,
+    value: string | number
+  ) => {
+    const newIngredients = [...editIngredients];
+    if (field === 'quantity') {
+      newIngredients[index] = {
+        ...newIngredients[index],
+        [field]: Number(value),
+      };
+    } else if (field === 'measurement') {
+      newIngredients[index] = {
+        ...newIngredients[index],
+        [field]: value as MeasurementUnit,
+      };
+    } else {
+      newIngredients[index] = { ...newIngredients[index], [field]: value };
+    }
+    setEditIngredients(newIngredients);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const result = e.target?.result as string;
+        setEditImage(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setEditImage('');
+  };
+
+  // ESC key listener for exiting edit mode
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isEditMode) {
+        handleExitEditMode();
+      }
+    };
+
+    if (isEditMode) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isEditMode, handleExitEditMode]);
+
   if (!recipe) {
     return (
       <Box marginTop='20px' textAlign='center'>
@@ -64,7 +235,7 @@ export function RecipePage() {
 
   return (
     <Box marginTop='20px'>
-      {/* Header with back button and delete button */}
+      {/* Header with back button and action buttons */}
       <Box
         display='flex'
         alignItems='center'
@@ -79,25 +250,71 @@ export function RecipePage() {
           >
             Back to Recipes
           </Button>
-          <Typography variant='h4' fontWeight={600} color='text.primary'>
-            {recipe.title}
-          </Typography>
+          {isEditMode ? (
+            <TextField
+              value={editTitle}
+              onChange={e => setEditTitle(e.target.value)}
+              variant='outlined'
+              size='medium'
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  fontSize: '2rem',
+                  fontWeight: 600,
+                },
+              }}
+            />
+          ) : (
+            <Typography variant='h4' fontWeight={600} color='text.primary'>
+              {recipe.title}
+            </Typography>
+          )}
         </Box>
 
-        <Button
-          variant='outlined'
-          color='error'
-          startIcon={<DeleteIcon />}
-          onClick={handleDeleteClick}
-          sx={{
-            '&:hover': {
-              backgroundColor: 'error.light',
-              color: 'white',
-            },
-          }}
-        >
-          Delete Recipe
-        </Button>
+        <Box display='flex' gap={2}>
+          {isEditMode ? (
+            <>
+              <Button
+                variant='contained'
+                color='success'
+                startIcon={<SaveIcon />}
+                onClick={handleSaveEdit}
+              >
+                Save
+              </Button>
+              <Button
+                variant='outlined'
+                startIcon={<CancelIcon />}
+                onClick={handleExitEditMode}
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant='outlined'
+                startIcon={<EditIcon />}
+                onClick={handleEditClick}
+              >
+                Edit
+              </Button>
+              <Button
+                variant='outlined'
+                color='error'
+                startIcon={<DeleteIcon />}
+                onClick={handleDeleteClick}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: 'error.light',
+                    color: 'white',
+                  },
+                }}
+              >
+                Delete Recipe
+              </Button>
+            </>
+          )}
+        </Box>
       </Box>
 
       <Grid container spacing={4}>
@@ -105,61 +322,302 @@ export function RecipePage() {
         <Grid item xs={12} md={8}>
           <Card elevation={3} sx={{ borderRadius: '16px', mb: 3 }}>
             <CardContent sx={{ p: 4 }}>
-              {recipe.description && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant='h6'
-                    gutterBottom
-                    color='text.primary'
-                    fontWeight={600}
-                  >
-                    Description
-                  </Typography>
-                  <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
-                    {recipe.description}
-                  </Typography>
-                </Box>
-              )}
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant='h6'
+                  gutterBottom
+                  color='text.primary'
+                  fontWeight={600}
+                >
+                  Description
+                </Typography>
+                {isEditMode ? (
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    value={editDescription}
+                    onChange={e => setEditDescription(e.target.value)}
+                    placeholder='Enter recipe description...'
+                    variant='outlined'
+                  />
+                ) : (
+                  recipe.description && (
+                    <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
+                      {recipe.description}
+                    </Typography>
+                  )
+                )}
+              </Box>
 
-              <Divider sx={{ my: 3 }} />
-
-              <Typography
-                variant='h6'
-                gutterBottom
-                color='text.primary'
-                fontWeight={600}
-              >
-                Ingredients
-              </Typography>
-              <Grid container spacing={2}>
-                {recipe.ingredients.map((ingredient, index) => (
-                  <Grid item xs={12} sm={6} key={index}>
+              {/* Image Upload Section */}
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant='h6'
+                  gutterBottom
+                  color='text.primary'
+                  fontWeight={600}
+                >
+                  Recipe Image
+                </Typography>
+                {isEditMode ? (
+                  <Box>
                     <Box
                       sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        p: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: '8px',
-                        backgroundColor: 'background.paper',
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
+                        gap: 2,
+                        mb: 2,
                       }}
                     >
-                      <Chip
-                        label={`${ingredient.quantity} ${ingredient.measurement}`}
-                        color='primary'
-                        variant='outlined'
-                        sx={{ mr: 2, minWidth: '80px' }}
+                      <input
+                        accept='image/*'
+                        style={{ display: 'none' }}
+                        id='edit-image-upload'
+                        type='file'
+                        onChange={handleImageUpload}
                       />
-                      <Typography variant='body1' fontWeight={500}>
-                        {ingredient.title}
-                      </Typography>
+                      <label htmlFor='edit-image-upload'>
+                        <Button
+                          variant='outlined'
+                          component='span'
+                          startIcon={<PhotoCameraIcon />}
+                          size='small'
+                        >
+                          Choose Image
+                        </Button>
+                      </label>
+                      {editImage && (
+                        <Button
+                          variant='outlined'
+                          color='error'
+                          startIcon={<DeleteForeverIcon />}
+                          size='small'
+                          onClick={handleRemoveImage}
+                        >
+                          Remove Image
+                        </Button>
+                      )}
                     </Box>
-                  </Grid>
-                ))}
+
+                    {editImage && (
+                      <Avatar
+                        src={editImage}
+                        sx={{
+                          width: 200,
+                          height: 150,
+                          borderRadius: 2,
+                          border: '2px solid',
+                          borderColor: 'divider',
+                        }}
+                        variant='rounded'
+                      />
+                    )}
+                  </Box>
+                ) : (
+                  recipe.image && (
+                    <Avatar
+                      src={recipe.image}
+                      sx={{
+                        width: 200,
+                        height: 150,
+                        borderRadius: 2,
+                        border: '2px solid',
+                        borderColor: 'divider',
+                      }}
+                      variant='rounded'
+                    />
+                  )
+                )}
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 2,
+                }}
+              >
+                <Typography variant='h6' color='text.primary' fontWeight={600}>
+                  Ingredients
+                </Typography>
+                {isEditMode && (
+                  <Button
+                    variant='outlined'
+                    startIcon={<AddIcon />}
+                    onClick={handleAddIngredient}
+                    size='small'
+                  >
+                    Add Ingredient
+                  </Button>
+                )}
+              </Box>
+
+              <Grid container spacing={2}>
+                {(isEditMode ? editIngredients : recipe.ingredients).map(
+                  (ingredient, index) => (
+                    <Grid item xs={12} sm={6} key={index}>
+                      {isEditMode ? (
+                        <Card
+                          elevation={2}
+                          sx={{
+                            borderRadius: '16px',
+                            position: 'relative',
+                            border: '1px solid grey',
+                            transition: 'all 0.2s ease-in-out',
+                          }}
+                        >
+                          {/* Header with delete button */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'flex-end',
+                              alignItems: 'center',
+                              borderBottom: '1px solid grey',
+                              px: 2,
+                              py: 0.5,
+                            }}
+                          >
+                            <IconButton
+                              onClick={() => handleRemoveIngredient(index)}
+                              color='error'
+                              size='medium'
+                              sx={{
+                                '&:hover': {
+                                  backgroundColor: 'error.light',
+                                  color: 'white',
+                                  ml: 'auto',
+                                },
+                              }}
+                            >
+                              <DeleteIcon fontSize='small' />
+                            </IconButton>
+                          </Box>
+
+                          <CardContent sx={{ p: 3 }}>
+                            <Grid container spacing={3}>
+                              {/* Ingredient Name - Full Width */}
+                              <Grid item xs={12}>
+                                <TextField
+                                  label={
+                                    <span>
+                                      Ingredient Name{' '}
+                                      <span style={{ color: 'red' }}>*</span>
+                                    </span>
+                                  }
+                                  value={ingredient.title}
+                                  onChange={e =>
+                                    handleIngredientChange(
+                                      index,
+                                      'title',
+                                      e.target.value
+                                    )
+                                  }
+                                  margin='normal'
+                                  fullWidth
+                                  placeholder='Flour, Sugar, etc.'
+                                  sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: '8px',
+                                    },
+                                  }}
+                                />
+                              </Grid>
+
+                              {/* Quantity and Measurement - Side by Side */}
+                              <Grid item xs={6}>
+                                <TextField
+                                  label='Quantity'
+                                  type='number'
+                                  value={ingredient.quantity}
+                                  onChange={e => {
+                                    const newValue = Math.max(
+                                      0.1,
+                                      parseFloat(e.target.value) || 0
+                                    );
+                                    handleIngredientChange(
+                                      index,
+                                      'quantity',
+                                      newValue
+                                    );
+                                  }}
+                                  margin='normal'
+                                  fullWidth
+                                  inputProps={{ min: 0.1, step: 0.1 }}
+                                  sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: '8px',
+                                    },
+                                  }}
+                                />
+                              </Grid>
+                              <Grid item xs={6}>
+                                <TextField
+                                  select
+                                  label='Measurement'
+                                  value={ingredient.measurement}
+                                  onChange={e =>
+                                    handleIngredientChange(
+                                      index,
+                                      'measurement',
+                                      e.target.value
+                                    )
+                                  }
+                                  margin='normal'
+                                  fullWidth
+                                  sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                      borderRadius: '8px',
+                                    },
+                                  }}
+                                >
+                                  {Object.values(MeasurementUnit).map(unit => (
+                                    <MenuItem key={unit} value={unit}>
+                                      {unit}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                              </Grid>
+                            </Grid>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            p: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: '8px',
+                            backgroundColor: 'background.paper',
+                            '&:hover': {
+                              backgroundColor: 'action.hover',
+                            },
+                          }}
+                        >
+                          <Chip
+                            label={`${
+                              ingredient.quantity
+                            } ${pluralizeMeasurement(
+                              ingredient.quantity,
+                              ingredient.measurement
+                            )}`}
+                            color='primary'
+                            variant='outlined'
+                            sx={{ mr: 2, minWidth: '80px' }}
+                          />
+                          <Typography variant='body1' fontWeight={500}>
+                            {ingredient.title}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Grid>
+                  )
+                )}
               </Grid>
             </CardContent>
           </Card>
@@ -194,10 +652,10 @@ export function RecipePage() {
               <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
                 Created
               </Typography>
-              <Typography variant='body2'>
+              <Typography variant='body2' sx={{ mb: 2 }}>
                 {recipe.createdAt
                   ? new Date(recipe.createdAt).toLocaleDateString('en-US', {
-                      year: '2-digit',
+                      year: 'numeric',
                       month: 'numeric',
                       day: 'numeric',
                       hour: 'numeric',
@@ -205,12 +663,27 @@ export function RecipePage() {
                     })
                   : 'Unknown'}
               </Typography>
+
+              <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                Last Updated
+              </Typography>
+              <Typography variant='body2'>
+                {recipe.lastUpdated
+                  ? new Date(recipe.lastUpdated).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })
+                  : 'Never'}
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Recipe Confirmation Dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={handleDeleteCancel}
@@ -234,6 +707,66 @@ export function RecipePage() {
             autoFocus
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Ingredient Confirmation Dialog */}
+      <Dialog
+        open={deleteIngredientDialogOpen}
+        onClose={handleCancelDeleteIngredient}
+        aria-labelledby='delete-ingredient-dialog-title'
+      >
+        <DialogTitle id='delete-ingredient-dialog-title'>
+          Delete Ingredient
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this ingredient? This action cannot
+            be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDeleteIngredient} color='primary'>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDeleteIngredient}
+            color='error'
+            variant='contained'
+            autoFocus
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Exit Edit Mode Confirmation Dialog */}
+      <Dialog
+        open={exitEditDialogOpen}
+        onClose={handleExitEditCancel}
+        aria-labelledby='exit-edit-dialog-title'
+      >
+        <DialogTitle id='exit-edit-dialog-title'>Unsaved Changes</DialogTitle>
+        <DialogContent>
+          <Typography>
+            You have unsaved changes. What would you like to do?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleExitEditCancel} color='primary'>
+            Continue Editing
+          </Button>
+          <Button onClick={handleExitEditConfirm} color='secondary'>
+            Discard Changes
+          </Button>
+          <Button
+            onClick={handleExitEditSave}
+            color='primary'
+            variant='contained'
+            autoFocus
+          >
+            Save Changes
           </Button>
         </DialogActions>
       </Dialog>

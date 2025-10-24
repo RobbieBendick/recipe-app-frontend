@@ -31,10 +31,13 @@ export function RecipeProvider(props: {
       const stored = localStorage.getItem('recipe-app-recipes');
       if (stored) {
         const parsed = JSON.parse(stored) as Recipe[];
-        // convert createdAt strings back to Date objects
+        // convert createdAt and lastUpdated strings back to Date objects
         return parsed.map((recipe: Recipe) => ({
           ...recipe,
           createdAt: recipe.createdAt ? new Date(recipe.createdAt) : undefined,
+          lastUpdated: recipe.lastUpdated
+            ? new Date(recipe.lastUpdated)
+            : undefined,
         }));
       }
     } catch (error) {

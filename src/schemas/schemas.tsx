@@ -2,7 +2,9 @@ export interface Recipe {
   title: string;
   description: string;
   ingredients: Ingredient[];
+  image?: string; // Base64 encoded image data
   createdAt?: Date;
+  lastUpdated?: Date;
 }
 
 export interface Ingredient {

@@ -1,9 +1,5 @@
-import {
-  createTheme,
-  PaletteMode,
-  ThemeProvider,
-  useMediaQuery,
-} from '@mui/material';
+import { PaletteMode, ThemeProvider, useMediaQuery } from '@mui/material';
+import { createTheme } from '@mui/material/styles';
 import { grey } from '@mui/material/colors';
 import { createContext, useEffect, useMemo, useState } from 'react';
 import { BindRoutes } from './components/routes/bind-routes';

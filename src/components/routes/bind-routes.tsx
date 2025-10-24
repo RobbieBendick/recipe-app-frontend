@@ -5,6 +5,7 @@ import { Recipes } from '@/components/recipes/recipes';
 import { RecipePage } from '@/components/recipes/recipe-page';
 import { RecentGroceryLists } from '@/components/recent-grocery-lists/recent-grocery-lists';
 import { CreateGroceryList } from '@/components/create-grocery-list/create-grocery-list';
+import { KrogerTest } from '@/components/kroger-test/kroger-test';
 import { RecipeProvider } from '@/components/recipes/recipe-context';
 import ResponsiveNavBar from '@/components/nav/navbar';
 import { IRoute, ROUTE_PATHS } from '@/schemas/route-paths';
@@ -30,6 +31,10 @@ const routes: IRoute[] = [
   {
     path: ROUTE_PATHS.createGroceryList,
     element: <CreateGroceryList />,
+  },
+  {
+    path: ROUTE_PATHS.krogerTest,
+    element: <KrogerTest />,
   },
 ];
 
