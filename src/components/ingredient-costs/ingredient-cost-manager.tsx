@@ -28,7 +28,7 @@ import {
 import { Add, Search, Delete, Refresh } from '@mui/icons-material';
 import { useIngredientCosts } from '../../hooks/use-ingredient-costs';
 import { useKroger } from '../../contexts/kroger-context';
-import { IngredientCost } from '../../database/ingredient-costs';
+import { IngredientInfo } from '../../database/ingredient-costs';
 
 export const IngredientCostManager: React.FC = () => {
   const {
@@ -46,10 +46,10 @@ export const IngredientCostManager: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredIngredients, setFilteredIngredients] = useState<
-    IngredientCost[]
+    IngredientInfo[]
   >([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newIngredient, setNewIngredient] = useState<Partial<IngredientCost>>({
+  const [newIngredient, setNewIngredient] = useState<Partial<IngredientInfo>>({
     name: '',
     costPerGram: 0,
     source: 'manual',
@@ -72,7 +72,7 @@ export const IngredientCostManager: React.FC = () => {
   // Add new ingredient
   const handleAddIngredient = () => {
     if (newIngredient.name && newIngredient.costPerGram) {
-      const cost: IngredientCost = {
+      const cost: IngredientInfo = {
         id: `manual_${Date.now()}`,
         name: newIngredient.name,
         costPerGram: newIngredient.costPerGram,
@@ -109,7 +109,7 @@ export const IngredientCostManager: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant='h4' gutterBottom>
+      <Typography variant='h4' gutterBottom color='text.primary'>
         Ingredient Cost Database
       </Typography>
 

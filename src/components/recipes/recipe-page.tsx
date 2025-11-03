@@ -17,10 +17,11 @@ import {
   Avatar,
 } from '@mui/material';
 import { RecipeContext } from './recipe-context';
-import { useContext, useState, useEffect, useCallback } from 'react';
+import { useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Ingredient, MeasurementUnit } from '../../schemas/schemas';
+import { Ingredient, MeasurementUnit, Recipe } from '../../schemas/schemas';
 import { pluralizeMeasurement } from '../../helpers/helpers';
+import { ingredientCostDB } from '../../database/ingredient-costs';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -29,6 +30,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import AddIcon from '@mui/icons-material/Add';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import { SearchIngredientDialog } from './dialogs/search-ingredient-dialog';
 
 export function RecipePage() {
   const navigate = useNavigate();
@@ -42,14 +44,56 @@ export function RecipePage() {
   const [ingredientToDelete, setIngredientToDelete] = useState<number | null>(
     null
   );
+  const [searchIngredientDialogOpen, setSearchIngredientDialogOpen] =
+    useState(false);
+  const [ingredientToSearch, setIngredientToSearch] = useState<{
+    ingredient: string;
+    quantity: number;
+    measurement: string;
+  } | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editIngredients, setEditIngredients] = useState<Ingredient[]>([]);
   const [editImage, setEditImage] = useState<string>('');
+  const [costDataVersion, setCostDataVersion] = useState(0);
 
   const recipeIndex = parseInt(recipeId || '0', 10);
   const recipe = savedRecipes[recipeIndex];
+
+  // Calculate recipe cost based on ingredients
+  const calculateRecipeCost = useCallback((recipe: Recipe) => {
+    const ingredients = recipe.ingredients.map((ingredient: Ingredient) => ({
+      name: ingredient.title,
+      quantity: ingredient.quantity,
+      measurement: ingredient.measurement as MeasurementUnit,
+    }));
+
+    const costData = ingredientCostDB.calculateRecipeCost(ingredients);
+    return costData;
+  }, []);
+
+  // Recalculate cost data when recipe or costDataVersion changes
+  // costDataVersion is used to force recalculation when ingredient pricing data is added
+  const costData = useMemo(() => {
+    if (!recipe) return null;
+    return calculateRecipeCost(recipe);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe, costDataVersion, calculateRecipeCost]);
+
+  const handleSearchIngredient = useCallback(
+    (item: { ingredient: string; quantity: number; measurement: string }) => {
+      setIngredientToSearch(item);
+      setSearchIngredientDialogOpen(true);
+    },
+    []
+  );
+
+  const handleIngredientSearchSuccess = useCallback(() => {
+    // Force re-calculation of cost data by incrementing version
+    setCostDataVersion(prev => prev + 1);
+    console.log('✅ Pricing data added, recalculating costs...');
+  }, []);
 
   const handleDeleteClick = () => {
     setDeleteDialogOpen(true);
@@ -631,7 +675,7 @@ export function RecipePage() {
         <Grid item xs={12} md={4}>
           <Card elevation={3} sx={{ borderRadius: '16px' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant='h6' gutterBottom color='primary'>
+              <Typography variant='h6' gutterBottom color='text.primary'>
                 Recipe Info
               </Typography>
 
@@ -645,10 +689,44 @@ export function RecipePage() {
               </Box>
 
               <Box sx={{ mb: 2 }}>
-                <Typography variant='body2' color='text.secondary'>
+                <Typography variant='body2' color='text.primary'>
                   Recipe Number
                 </Typography>
-                <Typography variant='h6'>#{recipeIndex + 1}</Typography>
+                <Typography variant='h6' color='text.secondary'>
+                  #{recipeIndex + 1}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant='body2' color='text.primary'>
+                  Estimated Cost
+                </Typography>
+                <Typography
+                  variant='h4'
+                  color={
+                    costData && costData.totalCost > 0
+                      ? 'success.main'
+                      : 'text.secondary'
+                  }
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    fontWeight: 600,
+                  }}
+                >
+                  ${costData ? costData.totalCost.toFixed(2) : '0.00'}
+                </Typography>
+                {costData && costData.missingIngredients.length > 0 && (
+                  <Typography
+                    variant='caption'
+                    color='warning.dark'
+                    sx={{ mt: 0.5, display: 'block' }}
+                  >
+                    Missing pricing for:{' '}
+                    {costData.missingIngredients.join(', ')}
+                  </Typography>
+                )}
               </Box>
 
               <Divider sx={{ my: 2 }} />
@@ -686,6 +764,193 @@ export function RecipePage() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Price Breakdown Section */}
+      {costData && costData.breakdown.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Card elevation={3} sx={{ borderRadius: '16px' }}>
+            <CardContent sx={{ p: 4 }}>
+              <Typography
+                variant='h6'
+                gutterBottom
+                color='primary'
+                fontWeight={600}
+              >
+                💰 Cost Breakdown
+              </Typography>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant='body2' color='text.primary'>
+                  Detailed cost analysis for each ingredient
+                </Typography>
+              </Box>
+
+              <Grid container spacing={2}>
+                {costData.breakdown.map((item, index) => (
+                  <Grid item xs={12} sm={6} md={4} key={index}>
+                    <Card
+                      elevation={1}
+                      sx={{
+                        borderRadius: '12px',
+                        opacity: item.found ? 1 : 0.7,
+                      }}
+                    >
+                      <CardContent sx={{ p: 2 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mb: 1,
+                          }}
+                        >
+                          <Typography
+                            variant='subtitle2'
+                            fontWeight={600}
+                            color='text.primary'
+                          >
+                            {item.ingredient}
+                          </Typography>
+                          <Typography
+                            variant='h6'
+                            color={item.found ? 'success.dark' : 'warning.dark'}
+                            fontWeight={700}
+                          >
+                            ${item.totalCost.toFixed(2)}
+                          </Typography>
+                        </Box>
+
+                        <Typography
+                          variant='body2'
+                          color='text.secondary'
+                          sx={{ mb: 1 }}
+                        >
+                          {item.quantity}{' '}
+                          {pluralizeMeasurement(
+                            item.quantity,
+                            item.measurement
+                          )}
+                        </Typography>
+
+                        {item.found ? (
+                          <Box>
+                            <Typography
+                              variant='caption'
+                              color='text.secondary'
+                            >
+                              ${item.costPerGram.toFixed(6)}/gram
+                            </Typography>
+                            <Typography
+                              variant='caption'
+                              sx={{ display: 'block', mt: 0.5, mb: 0.5 }}
+                            >
+                              ✅ Price data available
+                            </Typography>
+                            <IconButton
+                              size='small'
+                              color='primary'
+                              onClick={() => {
+                                handleSearchIngredient({
+                                  ingredient: item.ingredient,
+                                  quantity: item.quantity,
+                                  measurement: item.measurement,
+                                });
+                              }}
+                              sx={{
+                                mt: 0.5,
+                                border: '1px solid',
+                                borderColor: 'primary.main',
+                                '&:hover': {
+                                  backgroundColor: 'primary.light',
+                                  color: 'primary.contrastText',
+                                },
+                              }}
+                            >
+                              <EditIcon fontSize='small' />
+                            </IconButton>
+                          </Box>
+                        ) : (
+                          <Box>
+                            <Typography
+                              variant='caption'
+                              color='warning.dark'
+                              sx={{ display: 'block' }}
+                            >
+                              ⚠️ No pricing data
+                            </Typography>
+                            <Button
+                              size='small'
+                              variant='outlined'
+                              color='primary'
+                              sx={{
+                                mt: 1,
+                                fontSize: '0.75rem',
+                                minWidth: 'auto',
+                                py: 0.5,
+                                px: 1,
+                              }}
+                              onClick={() => {
+                                handleSearchIngredient({
+                                  ingredient: item.ingredient,
+                                  quantity: item.quantity,
+                                  measurement: item.measurement,
+                                });
+                              }}
+                            >
+                              Search Kroger
+                            </Button>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Summary */}
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 2,
+                  borderRadius: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography
+                    variant='h6'
+                    fontWeight={600}
+                    color='primary.main'
+                  >
+                    Total Recipe Cost
+                  </Typography>
+                  <Typography
+                    variant='h4'
+                    fontWeight={700}
+                    color='primary.main'
+                  >
+                    ${costData.totalCost.toFixed(2)}
+                  </Typography>
+                </Box>
+
+                {costData.missingIngredients.length > 0 && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant='body2' color='warning.dark'>
+                      ⚠️ {costData.missingIngredients.length} ingredient(s)
+                      missing pricing data
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
 
       {/* Delete Recipe Confirmation Dialog */}
       <Dialog
@@ -774,6 +1039,19 @@ export function RecipePage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Search Ingredient Dialog */}
+      {ingredientToSearch && (
+        <SearchIngredientDialog
+          open={searchIngredientDialogOpen}
+          onClose={() => {
+            setSearchIngredientDialogOpen(false);
+            setIngredientToSearch(null);
+          }}
+          ingredient={ingredientToSearch}
+          onSuccess={handleIngredientSearchSuccess}
+        />
+      )}
     </Box>
   );
 }

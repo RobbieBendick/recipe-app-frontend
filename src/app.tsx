@@ -5,6 +5,7 @@ import { createContext, useEffect, useMemo, useState } from 'react';
 import { BindRoutes } from './components/routes/bind-routes';
 import { BrowserRouter } from 'react-router-dom';
 import { KrogerProvider } from './contexts/kroger-context';
+import { GroceryListProvider } from './contexts/grocery-list-context';
 import { KrogerStatus } from './components/kroger-status/kroger-status';
 
 const getDesignTokens = (mode: PaletteMode) => ({
@@ -95,10 +96,12 @@ function App() {
       <ColorModeContext.Provider value={colorMode}>
         <ThemeProvider theme={theme}>
           <KrogerProvider>
-            <BrowserRouter>
-              <BindRoutes />
-              <KrogerStatus />
-            </BrowserRouter>
+            <GroceryListProvider>
+              <BrowserRouter>
+                <BindRoutes />
+                <KrogerStatus />
+              </BrowserRouter>
+            </GroceryListProvider>
           </KrogerProvider>
         </ThemeProvider>
       </ColorModeContext.Provider>

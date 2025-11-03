@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ingredientCostDB, IngredientCost } from '../database/ingredient-costs';
+import { ingredientCostDB, IngredientInfo } from '../database/ingredient-costs';
 
 export const useIngredientCosts = () => {
-  const [ingredients, setIngredients] = useState<IngredientCost[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientInfo[]>([]);
   const [stats, setStats] = useState(ingredientCostDB.getStats());
   const [loading, setLoading] = useState(false);
 
@@ -14,7 +14,7 @@ export const useIngredientCosts = () => {
 
   // Add ingredient cost
   const addIngredientCost = useCallback(
-    (cost: IngredientCost) => {
+    (cost: IngredientInfo) => {
       ingredientCostDB.addIngredientCost(cost);
       loadIngredients();
     },

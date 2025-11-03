@@ -32,4 +32,5 @@ export enum MeasurementUnit {
   HALF = 'half',
   QUARTER = 'quarter',
   BOTTLE = 'bottle',
+  STICK = 'stick',
 }

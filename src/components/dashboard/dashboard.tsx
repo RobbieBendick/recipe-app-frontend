@@ -26,9 +26,9 @@ const cardData: CardDataProps[] = [
   },
   {
     icon: <ListAlt fontSize='large' />,
-    title: 'Recent Grocery Lists',
-    description: 'View and edit your recent grocery lists.',
-    href: '/recent-grocery-lists',
+    title: 'Saved Grocery Lists',
+    description: 'View and edit your saved grocery lists.',
+    href: '/saved-grocery-lists',
   },
   {
     icon: <AddShoppingCart fontSize='large' />,

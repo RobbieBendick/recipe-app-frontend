@@ -14,6 +14,13 @@ import type {
   KrogerAPIErrorForbidden,
   KrogerAPIError,
 } from '../types/kroger-api';
+import { ingredientCostDB } from '../database/ingredient-costs';
+import {
+  MEASUREMENT_CONVERSIONS,
+  ALL_INGREDIENT_NAMES,
+  WHOLE_ITEM_MEASUREMENTS,
+  WHOLE_ITEM_WEIGHTS,
+} from '../constants/ingredient-constants';
 
 class KrogerAPIService {
   private baseURL = '/api/kroger/v1'; // Use proxy for development
@@ -96,51 +103,171 @@ class KrogerAPIService {
     try {
       const token = await this.getAccessToken();
 
-      const searchParams = new URLSearchParams();
+      // First try specific search
+      const searchResults = await this.performSpecificSearch(params, token);
 
-      // Add search parameters
-      if (params.term) searchParams.append('filter.term', params.term);
-      if (params.productId)
-        searchParams.append('filter.productId', params.productId);
-      if (params.brand) searchParams.append('filter.brand', params.brand);
-      if (params.locationId)
-        searchParams.append('filter.locationId', params.locationId);
-      if (params.fulfillment)
-        searchParams.append('filter.fulfillment', params.fulfillment);
-      if (params.start)
-        searchParams.append('filter.start', params.start.toString());
-      if (params.limit)
-        searchParams.append('filter.limit', params.limit.toString());
+      // If no results or very few results, try fuzzy search
+      if (searchResults.products.length < 3) {
+        console.log(
+          `🔍 Specific search found ${searchResults.products.length} results, trying fuzzy search...`
+        );
+        const fuzzyResults = await this.performFuzzySearch(params, token);
 
-      const response = await fetch(`${this.baseURL}/products?${searchParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
+        // Combine results, prioritizing specific matches
+        const combinedProducts = [...searchResults.products];
+        fuzzyResults.products.forEach(fuzzyProduct => {
+          // Avoid duplicates
+          if (
+            !combinedProducts.some(
+              existing => existing.productId === fuzzyProduct.productId
+            )
+          ) {
+            combinedProducts.push(fuzzyProduct);
+          }
+        });
 
-      if (!response.ok) {
-        await this.handleAPIError(response);
+        searchResults.products = combinedProducts;
       }
 
-      const data: KrogerProductsPayload = await response.json();
-
-      // Convert to simplified format for UI
-      const products: KrogerProductSummary[] = data.data.map(
-        this.convertToProductSummary
-      );
-
-      return {
-        products,
-        pagination: {
-          start: params.start || 0,
-          limit: params.limit || 10,
-        },
-      };
+      return searchResults;
     } catch (error) {
       console.error('Error searching Kroger products:', error);
       throw error;
     }
+  }
+
+  // Perform specific search with exact terms
+  private async performSpecificSearch(
+    params: KrogerProductSearchParams,
+    token: string
+  ): Promise<KrogerSearchResults> {
+    const searchParams = new URLSearchParams();
+
+    // Add search parameters
+    if (params.term) searchParams.append('filter.term', params.term);
+    if (params.productId)
+      searchParams.append('filter.productId', params.productId);
+    if (params.brand) searchParams.append('filter.brand', params.brand);
+    if (params.locationId)
+      searchParams.append('filter.locationId', params.locationId);
+    if (params.fulfillment)
+      searchParams.append('filter.fulfillment', params.fulfillment);
+    if (params.start)
+      searchParams.append('filter.start', params.start.toString());
+    if (params.limit)
+      searchParams.append('filter.limit', params.limit.toString());
+
+    const response = await fetch(`${this.baseURL}/products?${searchParams}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      await this.handleAPIError(response);
+    }
+
+    const data: KrogerProductsPayload = await response.json();
+
+    // Convert to simplified format for UI
+    const products: KrogerProductSummary[] = data.data.map(
+      this.convertToProductSummary
+    );
+
+    return {
+      products,
+      pagination: {
+        start: params.start || 0,
+        limit: params.limit || 10,
+      },
+    };
+  }
+
+  // Perform fuzzy search with broader terms
+  private async performFuzzySearch(
+    params: KrogerProductSearchParams,
+    token: string
+  ): Promise<KrogerSearchResults> {
+    if (!params.term) {
+      return { products: [], pagination: { start: 0, limit: 10 } };
+    }
+
+    // Create fuzzy search terms
+    const fuzzyTerms = this.createFuzzySearchTerms(params.term);
+
+    for (const fuzzyTerm of fuzzyTerms) {
+      try {
+        console.log(`🔍 Trying fuzzy search: "${fuzzyTerm}"`);
+
+        const searchParams = new URLSearchParams();
+        searchParams.append('filter.term', fuzzyTerm);
+        if (params.locationId)
+          searchParams.append('filter.locationId', params.locationId);
+        if (params.fulfillment)
+          searchParams.append('filter.fulfillment', params.fulfillment);
+        searchParams.append('filter.limit', (params.limit || 10).toString());
+
+        const response = await fetch(
+          `${this.baseURL}/products?${searchParams}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data: KrogerProductsPayload = await response.json();
+          const products: KrogerProductSummary[] = data.data.map(
+            this.convertToProductSummary
+          );
+
+          if (products.length > 0) {
+            console.log(
+              `✅ Fuzzy search found ${products.length} results with "${fuzzyTerm}"`
+            );
+            return {
+              products,
+              pagination: {
+                start: params.start || 0,
+                limit: params.limit || 10,
+              },
+            };
+          }
+        }
+      } catch (error) {
+        console.log(`❌ Fuzzy search failed for "${fuzzyTerm}":`, error);
+        continue;
+      }
+    }
+
+    return { products: [], pagination: { start: 0, limit: 10 } };
+  }
+
+  // Create fuzzy search terms from the original search term
+  private createFuzzySearchTerms(originalTerm: string): string[] {
+    const terms = originalTerm.toLowerCase().split(/\s+/);
+    const fuzzyTerms: string[] = [];
+
+    // Add the original term first (highest priority)
+    fuzzyTerms.push(originalTerm.toLowerCase());
+
+    // Add individual words
+    terms.forEach(term => {
+      if (term.length > 2) {
+        fuzzyTerms.push(term);
+      }
+    });
+
+    // Add the full term as a phrase
+    if (terms.length > 1) {
+      fuzzyTerms.push(terms.join(' '));
+    }
+
+    // Remove duplicates and return
+    return [...new Set(fuzzyTerms)];
   }
 
   // Legacy search method for backward compatibility
@@ -410,7 +537,7 @@ class KrogerAPIService {
   }
 
   // Fetch common ingredient costs and populate database
-  async fetchCommonIngredientCosts(locationId?: string): Promise<{
+  async fetchIngredientCosts(locationId?: string): Promise<{
     success: number;
     failed: number;
     ingredients: Array<{
@@ -421,29 +548,6 @@ class KrogerAPIService {
       price: number;
     }>;
   }> {
-    const commonIngredients = [
-      'bread',
-      'eggs',
-      'milk',
-      'flour',
-      'sugar',
-      'butter',
-      'cheese',
-      'chicken',
-      'beef',
-      'rice',
-      'pasta',
-      'oil',
-      'salt',
-      'pepper',
-      'onions',
-      'garlic',
-      'tomatoes',
-      'potatoes',
-      'bananas',
-      'apples',
-    ];
-
     const results = {
       success: 0,
       failed: 0,
@@ -458,27 +562,70 @@ class KrogerAPIService {
 
     console.log('🛒 Fetching common ingredient costs from Kroger...');
 
-    for (const ingredient of commonIngredients) {
+    // Extract ingredient names from the constants array
+    const ingredientNames = ALL_INGREDIENT_NAMES.filter(
+      item => typeof item === 'string'
+    ).map(item => item as string);
+
+    for (const ingredient of ingredientNames) {
       try {
         console.log(`Searching for: ${ingredient}`);
 
-        // Search for the ingredient
-        const searchResults = await this.searchProducts({
-          term: ingredient,
-          locationId,
-          limit: 5, // Get top 5 results to find the cheapest
-        });
+        // Get fallback search terms first
+        const fallbackTerms = this.getFallbackSearchTerms(ingredient);
+        console.log(
+          `📋 Fallback terms for "${ingredient}": ${fallbackTerms.join(', ')}`
+        );
 
-        if (searchResults.products.length === 0) {
-          console.log(`❌ No results for ${ingredient}`);
+        // Try fallback terms first (they're more likely to match actual product names)
+        let finalSearchResults = { products: [] as KrogerProductSummary[] };
+
+        for (const fallbackTerm of fallbackTerms) {
+          console.log(`🔍 Trying fallback: ${fallbackTerm}`);
+          const fallbackResults = await this.searchProducts({
+            term: fallbackTerm,
+            locationId,
+            limit: 5,
+          });
+
+          if (fallbackResults.products.length > 0) {
+            console.log(
+              `✅ Found ${fallbackResults.products.length} results with fallback: ${fallbackTerm}`
+            );
+            finalSearchResults = fallbackResults;
+            break;
+          }
+        }
+
+        // If no results from fallback terms, try the original ingredient name
+        if (finalSearchResults.products.length === 0) {
+          console.log(
+            `⚠️ No results from fallback terms, trying original: "${ingredient}"`
+          );
+          const originalResults = await this.searchProducts({
+            term: ingredient,
+            locationId,
+            limit: 5,
+          });
+
+          if (originalResults.products.length > 0) {
+            console.log(
+              `✅ Found ${originalResults.products.length} results with original term: ${ingredient}`
+            );
+            finalSearchResults = originalResults;
+          }
+        }
+
+        if (finalSearchResults.products.length === 0) {
+          console.log(`❌ No results for ${ingredient} or any fallback terms`);
           results.failed++;
           continue;
         }
 
         console.log(
-          `\n📋 Found ${searchResults.products.length} options for ${ingredient}:`
+          `\n📋 Found ${finalSearchResults.products.length} options for ${ingredient}:`
         );
-        searchResults.products.forEach((product, index) => {
+        finalSearchResults.products.forEach((product, index) => {
           console.log(
             `  ${index + 1}. ${product.brand} ${product.description}`
           );
@@ -494,22 +641,44 @@ class KrogerAPIService {
         let lowestCostPerGram = Infinity;
         let bestWeight = 0;
 
-        for (const product of searchResults.products) {
+        for (const product of finalSearchResults.products) {
           if (!product.price?.regular || !product.size) {
             console.log(`⚠️ Skipping ${product.brand} - missing price or size`);
             continue;
           }
 
           // Try to extract weight from size string
-          const weightInGrams = this.parseWeightFromSize(product.size);
-          if (weightInGrams <= 0) {
+          let weightInGrams = this.parseWeightFromSize(
+            product.size,
+            ingredient
+          );
+
+          // If size parsing fails, try extracting from description
+          if (weightInGrams instanceof Error || weightInGrams <= 0) {
             console.log(
-              `⚠️ Skipping ${product.brand} ${product.size} - no weight data`
+              `⚠️ Size "${product.size}" failed to parse, trying description: "${product.description}"`
             );
-            continue;
+            const descriptionWeight = this.parseWeightFromSize(
+              product.description,
+              ingredient
+            );
+            if (
+              !(descriptionWeight instanceof Error) &&
+              descriptionWeight > 0
+            ) {
+              weightInGrams = descriptionWeight;
+              console.log(
+                `✅ Extracted weight from description: ${weightInGrams}g`
+              );
+            } else {
+              console.log(
+                `⚠️ Skipping ${product.brand} - no valid weight data in size or description`
+              );
+              continue;
+            }
           }
 
-          const costPerGram = product.price.regular / weightInGrams;
+          const costPerGram = (product.price.regular / weightInGrams) as number;
           console.log(
             `💰 ${product.brand}: $${
               product.price.regular
@@ -519,13 +688,14 @@ class KrogerAPIService {
           if (costPerGram < lowestCostPerGram) {
             lowestCostPerGram = costPerGram;
             cheapestProduct = product;
-            bestWeight = weightInGrams;
+            bestWeight = weightInGrams as number;
             console.log(`🏆 New cheapest option!`);
           }
         }
 
         if (cheapestProduct && cheapestProduct.price?.regular) {
-          const costPerGram = cheapestProduct.price.regular / bestWeight;
+          const costPerGram = (cheapestProduct.price.regular /
+            (bestWeight as number)) as number;
 
           results.ingredients.push({
             name: ingredient,
@@ -538,12 +708,12 @@ class KrogerAPIService {
           console.log(
             `✅ ${ingredient}: $${costPerGram.toFixed(6)}/gram (${
               cheapestProduct.brand
-            } ${cheapestProduct.size} = ${bestWeight}g)`
+            } ${cheapestProduct.size} = ${bestWeight as number}g)`
           );
           results.success++;
         } else {
           console.log(
-            `❌ No valid weight data for ${ingredient} - tried ${searchResults.products.length} products`
+            `❌ No valid weight data for ${ingredient} - tried ${finalSearchResults.products.length} products`
           );
           results.failed++;
         }
@@ -584,19 +754,37 @@ class KrogerAPIService {
     return results;
   }
 
-  // Parse weight from size string (e.g., "1 lb" -> 453.592)
-  private parseWeightFromSize(size: string): number {
+  // Parse weight from size string using the ingredient cost database conversions
+  public parseWeightFromSize(
+    size: string,
+    ingredientName: string
+  ): number | Error {
     const sizeStr = size.toLowerCase();
     console.log(`🔍 Parsing weight from: "${size}"`);
 
+    // Generate measurement units from constants
+    const measurementUnits = Object.keys(MEASUREMENT_CONVERSIONS);
+    const unitsPattern = measurementUnits.join('|');
+    console.log(
+      `📏 Available measurement units: ${measurementUnits.join(', ')}`
+    );
+
     // Try multiple patterns to extract weight
     const patterns = [
-      // Standard patterns: "1 lb", "16 oz", "500g"
-      /(\d+(?:\.\d+)?)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)/,
-      // Patterns with extra text: "1 lb loaf", "16 oz bottle"
-      /(\d+(?:\.\d+)?)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)\s+\w+/,
-      // Patterns with fractions: "1/2 lb", "0.5 lb"
-      /(\d+(?:\.\d+)?|\d+\/\d+)\s*(lb|pound|oz|ounce|g|gram|kg|kilogram)/,
+      // Standard patterns: "1 lb", "16 oz", "500g", "10 fl oz"
+      new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${unitsPattern})`),
+      // Patterns with extra text: "1 lb loaf", "16 oz bottle", "10 fl oz bottle"
+      new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${unitsPattern})\\s+\\w+`),
+      // Patterns with fractions: "1/2 lb", "0.5 lb", "1/2 fl oz"
+      new RegExp(`(\\d+(?:\\.\\d+)?|\\d+\\/\\d+)\\s*(${unitsPattern})`),
+      // Count patterns: "1ct", "2ct", "12ct", "1 ct", "2 ct"
+      /(\d+(?:\.\d+)?)\s*(ct)\b/,
+      // Count patterns with text: "1ct chicken", "2ct breast", "1 ct chicken", "2 ct breast", "1 ct watermelon"
+      /(\d+(?:\.\d+)?)\s*(ct)\s+\w+/,
+      // General count patterns: "1 ct", "2 ct" (without requiring word after)
+      /(\d+(?:\.\d+)?)\s*(ct)(?:\s|$)/,
+      // Whole patterns: "2 whole carrots", "1 whole chicken"
+      /(\d+(?:\.\d+)?)\s*whole\s+\w+/,
     ];
 
     for (const pattern of patterns) {
@@ -615,47 +803,257 @@ class KrogerAPIService {
 
         const unit = match[2];
 
-        const conversions: Record<string, number> = {
-          g: 1,
-          gram: 1,
-          kg: 1000,
-          kilogram: 1000,
-          lb: 453.592,
-          pound: 453.592,
-          oz: 28.3495,
-          ounce: 28.3495,
-        };
+        // Special handling for count-based items
+        if (WHOLE_ITEM_MEASUREMENTS.includes(unit.toLowerCase())) {
+          // Estimate weight based on common count items
+          const weightInGrams = this.estimateWeightFromCount(
+            sizeStr,
+            quantity,
+            ingredientName
+          );
+          console.log(`✅ Parsed: ${quantity}${unit} = ${weightInGrams}g`);
+          return weightInGrams;
+        }
 
-        const weightInGrams = quantity * (conversions[unit] || 0);
+        // Use the ingredient cost database's conversion method
+        const weightInGrams = ingredientCostDB.convertToGrams(
+          quantity,
+          unit,
+          ingredientName
+        );
         console.log(`✅ Parsed: ${quantity} ${unit} = ${weightInGrams}g`);
         return weightInGrams;
       }
     }
 
-    // If no weight pattern matches, try to estimate from common sizes
-    const commonSizes: Record<string, number> = {
-      dozen: 12 * 50, // 12 eggs * ~50g each
-      count: 100, // Generic count item
-      each: 100, // Generic each item
-      bunch: 200, // Generic bunch
-      head: 500, // Generic head (lettuce, cabbage)
-      loaf: 500, // Generic loaf
-      bottle: 500, // Generic bottle
-      can: 400, // Generic can
-      jar: 300, // Generic jar
-      bag: 1000, // Generic bag
-      box: 200, // Generic box
+    console.log(`❌ Could not parse weight from: "${size}"`);
+    return new Error(`Could not parse weight from: "${size}"`);
+  }
+
+  // Get fallback search terms for when specific searches fail
+  private getFallbackSearchTerms(ingredient: string): string[] {
+    const fallbackMap: Record<string, string[]> = {
+      'white bread': ['bread', 'loaf bread', 'sandwich bread'],
+      eggs: ['large eggs', 'dozen eggs', 'fresh eggs'],
+      milk: [
+        'Kroger Kroger® 2% Reduced Fat Milk',
+        'Kroger 2% milk',
+        'Kroger milk',
+        'milk',
+        'dairy milk',
+        'fresh milk',
+      ],
+      'all purpose flour': ['flour', 'wheat flour', 'baking flour'],
+      'granulated sugar': ['sugar', 'white sugar', 'cane sugar'],
+      butter: ['salted butter', 'unsalted butter', 'dairy butter'],
+      cheese: ['cheese', 'shredded cheese', 'block cheese'],
+      'cheddar cheese': ['cheddar cheese', 'cheddar block'],
+      'mozzarella cheese': ['mozzarella cheese', 'shredded mozzarella'],
+
+      'chicken breast': ['chicken', 'boneless chicken', 'chicken meat'],
+      'ground beef': ['beef', 'hamburger', 'ground meat'],
+      'jasmine rice': ['rice', 'white rice', 'long grain rice'],
+      'spaghetti pasta': ['pasta', 'noodles', 'spaghetti'],
+      'vegetable oil': ['oil', 'cooking oil', 'canola oil'],
+      'table salt': ['salt', 'sea salt', 'kosher salt'],
+      'black pepper': ['pepper', 'ground pepper', 'peppercorns'],
+      'yellow onions': ['onions', 'cooking onions', 'sweet onions'],
+      garlic: ['garlic cloves', 'fresh garlic', 'garlic bulbs'],
+      tomatoes: ['fresh tomatoes', 'roma tomatoes', 'vine tomatoes'],
+      'russet potatoes': ['potatoes', 'baking potatoes', 'idaho potatoes'],
+      bananas: ['fresh bananas', 'ripe bananas', 'banana bunch'],
+      'red apples': ['apples', 'gala apples', 'red delicious apples'],
+      // Fruits fallback terms
+      oranges: ['fresh oranges', 'navel oranges', 'valencia oranges'],
+      lemons: ['fresh lemons', 'organic lemons', 'lemon fruit'],
+      limes: ['fresh limes', 'key limes', 'lime fruit'],
+      strawberries: [
+        'fresh strawberries',
+        'organic strawberries',
+        'strawberry',
+      ],
+      blueberries: ['fresh blueberries', 'organic blueberries', 'blueberry'],
+      raspberries: ['fresh raspberries', 'organic raspberries', 'raspberry'],
+      blackberries: [
+        'fresh blackberries',
+        'organic blackberries',
+        'blackberry',
+      ],
+      grapes: ['fresh grapes', 'red grapes', 'green grapes', 'grape bunch'],
+      peaches: ['fresh peaches', 'ripe peaches', 'peach fruit'],
+      pears: ['fresh pears', 'bartlett pears', 'pear fruit'],
+      plums: ['fresh plums', 'ripe plums', 'plum fruit'],
+      cherries: ['fresh cherries', 'sweet cherries', 'cherry fruit'],
+      pineapple: ['fresh pineapple', 'whole pineapple', 'pineapple fruit'],
+      mango: ['fresh mango', 'ripe mango', 'mango fruit'],
+      avocado: ['fresh avocado', 'ripe avocado', 'avocado fruit'],
+      kiwi: ['fresh kiwi', 'kiwi fruit', 'organic kiwi'],
+      cantaloupe: ['fresh cantaloupe', 'ripe cantaloupe', 'cantaloupe melon'],
+      watermelon: [
+        'seedless whole watermelon',
+        'seedless watermelon',
+        'seeded whole watermelon',
+        'watermelon seeded red',
+        'watermelon fruit',
+      ],
+      'honeydew melon': ['fresh honeydew', 'ripe honeydew', 'honeydew melon'],
+
+      // Additional fruits fallback terms
+      cranberries: [
+        'fresh cranberries',
+        'dried cranberries',
+        'cranberry fruit',
+      ],
+      elderberries: [
+        'fresh elderberries',
+        'dried elderberries',
+        'elderberry fruit',
+      ],
+      gooseberries: [
+        'fresh gooseberries',
+        'gooseberry fruit',
+        'cape gooseberries',
+      ],
+      currants: ['fresh currants', 'dried currants', 'red currants'],
+      figs: ['fresh figs', 'dried figs', 'fig fruit'],
+      dates: ['medjool dates', 'deglet noor dates', 'fresh dates'],
+      prunes: ['dried prunes', 'pitted prunes', 'california prunes'],
+      apricots: ['fresh apricots', 'dried apricots', 'apricot fruit'],
+      nectarines: ['fresh nectarines', 'ripe nectarines', 'nectarine fruit'],
+      persimmons: ['fresh persimmons', 'fuyu persimmons', 'hachiya persimmons'],
+      pomegranate: [
+        'fresh pomegranate',
+        'pomegranate seeds',
+        'pomegranate fruit',
+      ],
+      'passion fruit': [
+        'fresh passion fruit',
+        'passion fruit',
+        'purple passion fruit',
+      ],
+      'dragon fruit': ['fresh dragon fruit', 'pitaya', 'dragon fruit'],
+      'star fruit': ['fresh star fruit', 'carambola', 'star fruit'],
+      papaya: ['fresh papaya', 'ripe papaya', 'papaya fruit'],
+      guava: ['fresh guava', 'pink guava', 'guava fruit'],
+
+      // Condiments and spreads fallback terms
+      'peanut butter': [
+        'creamy peanut butter',
+        'chunky peanut butter',
+        'natural peanut butter',
+      ],
+      jelly: ['grape jelly', 'strawberry jelly', 'fruit jelly'],
+      jam: ['strawberry jam', 'grape jam', 'fruit jam'],
+      'hot sauce': [
+        'franks hot sauce',
+        'louisiana hot sauce',
+        'crystal hot sauce',
+      ],
+      sriracha: ['sriracha sauce', 'rooster sauce', 'thai hot sauce'],
+      tabasco: ['tabasco sauce', 'original tabasco', 'hot pepper sauce'],
+      ketchup: ['tomato ketchup', 'heinz ketchup', "hunt's ketchup"],
+      mustard: ['yellow mustard', 'dijon mustard', 'spicy mustard'],
+      mayonnaise: ["hellmann's mayo", 'best foods mayo', 'real mayonnaise'],
+      'ranch dressing': [
+        'hidden valley ranch',
+        'ranch salad dressing',
+        'buttermilk ranch',
+      ],
+      'italian dressing': [
+        'wishbone italian',
+        'italian salad dressing',
+        'zesty italian',
+      ],
+      'balsamic vinegar': [
+        'aged balsamic',
+        'balsamic vinegar',
+        'italian balsamic',
+      ],
+      'apple cider vinegar': [
+        'bragg apple cider',
+        'organic apple cider vinegar',
+        'raw apple cider',
+      ],
+      'white vinegar': [
+        'distilled white vinegar',
+        'white vinegar',
+        'cleaning vinegar',
+      ],
+      'soy sauce': [
+        'kikkoman soy sauce',
+        'low sodium soy sauce',
+        'tamari soy sauce',
+      ],
+      'worcestershire sauce': [
+        'lea and perrins',
+        'worcestershire sauce',
+        'worcester sauce',
+      ],
+      'barbecue sauce': ["sweet baby ray's", 'bbq sauce', 'barbecue sauce'],
+      'teriyaki sauce': ['kikkoman teriyaki', 'teriyaki sauce', 'soy teriyaki'],
+      'buffalo sauce': [
+        "frank's buffalo",
+        'buffalo wing sauce',
+        'hot wing sauce',
+      ],
+      'chili sauce': [
+        'heinz chili sauce',
+        'sweet chili sauce',
+        'thai chili sauce',
+      ],
+      'sweet and sour sauce': [
+        'kikkoman sweet and sour',
+        'sweet and sour',
+        'chinese sweet and sour',
+      ],
+      'honey mustard': [
+        "ken's honey mustard",
+        'honey mustard dressing',
+        'sweet honey mustard',
+      ],
+      'ranch seasoning': [
+        'hidden valley ranch mix',
+        'ranch seasoning mix',
+        'ranch dip mix',
+      ],
+      'taco seasoning': [
+        'mccormick taco seasoning',
+        'taco seasoning mix',
+        'mexican seasoning',
+      ],
+      'italian seasoning': [
+        'mccormick italian seasoning',
+        'italian herb mix',
+        'mediterranean herbs',
+      ],
+      'garlic salt': [
+        "lawry's garlic salt",
+        'garlic salt seasoning',
+        'seasoned salt',
+      ],
     };
 
-    for (const [sizeKey, estimatedWeight] of Object.entries(commonSizes)) {
-      if (sizeStr.includes(sizeKey)) {
-        console.log(`📦 Estimated from "${sizeKey}": ${estimatedWeight}g`);
-        return estimatedWeight;
+    return fallbackMap[ingredient] || [ingredient.split(' ')[0]]; // Fallback to first word
+  }
+
+  private estimateWeightFromCount(
+    sizeStr: string,
+    quantity: number,
+    ingredientName: string
+  ): number | Error {
+    const sizeLower = sizeStr.toLowerCase();
+    const ingredientLower = ingredientName.toLowerCase();
+
+    // Try to match against common items
+    for (const [item, weight] of Object.entries(WHOLE_ITEM_WEIGHTS)) {
+      if (sizeLower.includes(item) || ingredientLower.includes(item)) {
+        console.log(`📦 Estimated ${item}: ${weight}g per count`);
+        return (weight * quantity) as number;
       }
     }
-
-    console.log(`❌ Could not parse weight from: "${size}"`);
-    return 0;
+    return new Error(
+      `No weight estimate found for ${ingredientName} - ${sizeStr}`
+    ); // Default to 0 if no match found
   }
 }
 

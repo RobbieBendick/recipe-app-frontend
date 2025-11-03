@@ -6,6 +6,7 @@ interface RecipeContext {
   toggleAddRecipeDialog: () => void;
   savedRecipes: Recipe[];
   setSavedRecipes: (recipes: Recipe[]) => void;
+  addRecipe: (recipe: Recipe) => void;
 }
 
 export const RecipeContext = createContext<RecipeContext>({
@@ -13,6 +14,7 @@ export const RecipeContext = createContext<RecipeContext>({
   toggleAddRecipeDialog: () => null,
   savedRecipes: [],
   setSavedRecipes: () => null,
+  addRecipe: () => null,
 });
 
 export function RecipeProvider(props: {
@@ -46,6 +48,16 @@ export function RecipeProvider(props: {
     return [];
   });
 
+  // Add a new recipe
+  const addRecipe = (recipe: Recipe) => {
+    const newRecipe: Recipe = {
+      ...recipe,
+      createdAt: new Date(),
+      lastUpdated: new Date(),
+    };
+    setSavedRecipes(prev => [...prev, newRecipe]);
+  };
+
   // Save recipes to localStorage whenever savedRecipes changes
   useEffect(() => {
     try {
@@ -62,6 +74,7 @@ export function RecipeProvider(props: {
         toggleAddRecipeDialog,
         savedRecipes,
         setSavedRecipes,
+        addRecipe,
       }}
     >
       {props.children}

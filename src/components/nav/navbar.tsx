@@ -46,7 +46,7 @@ function ResponsiveNavBar() {
   const routes: Routes = {
     Dashboard: ROUTE_PATHS.home,
     Recipes: ROUTE_PATHS.recipes,
-    'Recent Grocery Lists': ROUTE_PATHS.recentGroceryLists,
+    'Saved Grocery Lists': ROUTE_PATHS.recentGroceryLists,
     'Create Grocery List': ROUTE_PATHS.createGroceryList,
   };
 

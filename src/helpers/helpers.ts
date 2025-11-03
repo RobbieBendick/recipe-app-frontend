@@ -6,11 +6,15 @@ export function pluralizeMeasurement(
     return measurement;
   }
   const nonPluralUnits = ['whole', 'quarter'];
+  if (nonPluralUnits.includes(measurement)) {
+    return measurement;
+  }
 
   if (measurement === 'half') {
     return 'halves';
   }
-  if (!nonPluralUnits.includes(measurement)) {
+
+  if (!measurement.endsWith('s')) {
     return measurement + 's';
   }
 

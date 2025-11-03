@@ -1,7 +1,7 @@
-export function RecentGroceryLists() {
+export function SavedGroceryLists() {
   return (
     <>
-      <p>RecentGroceryLists route</p>
+      <p>SavedGroceryLists route</p>
     </>
   );
 }
