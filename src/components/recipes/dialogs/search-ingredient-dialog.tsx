@@ -411,8 +411,13 @@ export const SearchIngredientDialog: React.FC<SearchIngredientDialogProps> = ({
                     product.size,
                     product.description
                   );
+                  const hasValidPrice =
+                    product.price?.regular !== undefined &&
+                    product.price.regular > 0;
                   const isValid =
-                    !(weightInGrams instanceof Error) && weightInGrams > 0;
+                    !(weightInGrams instanceof Error) &&
+                    weightInGrams > 0 &&
+                    hasValidPrice;
                   const isSelected =
                     selectedProduct?.productId === product.productId;
 
@@ -475,37 +480,46 @@ export const SearchIngredientDialog: React.FC<SearchIngredientDialogProps> = ({
                               ${product.price?.regular?.toFixed(2) || 'N/A'}
                             </Typography>
                           </Box>
-                          {isValid ? (
-                            <Chip
-                              label='Valid'
-                              color='success'
-                              size='small'
-                              sx={{ mt: 1 }}
-                            />
-                          ) : (
-                            <Chip
-                              label='Invalid size'
-                              color='warning'
-                              size='small'
-                              sx={{ mt: 1 }}
-                            />
-                          )}
-                          {isCurrentlySelected && (
-                            <Chip
-                              label='Currently Used'
-                              color='info'
-                              size='small'
-                              sx={{ mt: 1 }}
-                            />
-                          )}
-                          {isSelected && !isCurrentlySelected && (
-                            <Chip
-                              label='Selected'
-                              color='primary'
-                              size='small'
-                              sx={{ mt: 1, ml: isCurrentlySelected ? 1 : 0 }}
-                            />
-                          )}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 1,
+                              mt: 1,
+                            }}
+                          >
+                            {isValid ? (
+                              <Chip
+                                label='Valid'
+                                color='success'
+                                size='small'
+                              />
+                            ) : (
+                              <Chip
+                                label={
+                                  !hasValidPrice
+                                    ? 'Invalid - No price'
+                                    : 'Invalid size'
+                                }
+                                color='warning'
+                                size='small'
+                              />
+                            )}
+                            {isCurrentlySelected && (
+                              <Chip
+                                label='Currently Used'
+                                color='info'
+                                size='small'
+                              />
+                            )}
+                            {isSelected && !isCurrentlySelected && (
+                              <Chip
+                                label='Selected'
+                                color='primary'
+                                size='small'
+                              />
+                            )}
+                          </Box>
                         </CardContent>
                       </Card>
                     </Grid>

@@ -35,6 +35,108 @@ class IngredientCostDatabase {
     totalIngredients: 0,
   };
 
+  // Common descriptive words that should be ignored when matching ingredient names
+  private readonly descriptiveModifiers = [
+    'packed',
+    'softened',
+    'melted',
+    'chilled',
+    'room temperature',
+    'warmed',
+    'cooled',
+    'diced',
+    'chopped',
+    'sliced',
+    'minced',
+    'grated',
+    'shredded',
+    'crushed',
+    'mashed',
+    'pureed',
+    'ground',
+    'whole',
+    'halved',
+    'quartered',
+    'cubed',
+    'julienned',
+    'fresh',
+    'frozen',
+    'dried',
+    'canned',
+    'drained',
+    'rinsed',
+    'peeled',
+    'seeded',
+    'pitted',
+    'trimmed',
+    'boneless',
+    'skinless',
+    'seedless',
+    'unsalted',
+    'salted',
+    'sweetened',
+    'unsweetened',
+    'raw',
+    'cooked',
+    'roasted',
+    'toasted',
+    'baked',
+    'grilled',
+    'fried',
+  ];
+
+  /**
+   * Normalizes an ingredient name by removing descriptive modifiers and quantity metadata
+   * Example: "light brown sugar packed" -> "light brown sugar"
+   * Example: "chocolate chips (12 oz)" -> "chocolate chips"
+   */
+  private normalizeIngredientName(name: string): string {
+    let normalized = name.toLowerCase().trim();
+
+    // Remove quantity metadata in parentheses (e.g., "(12 oz)", "(1 lb)", "(2 cups)")
+    normalized = normalized.replace(/\s*\([^)]*\)/g, '').trim();
+
+    // Remove descriptive modifiers
+    for (const modifier of this.descriptiveModifiers) {
+      // Match modifier as a whole word (with word boundaries)
+      const regex = new RegExp(`\\b${modifier}\\b`, 'gi');
+      normalized = normalized.replace(regex, '').trim();
+    }
+
+    // Clean up extra whitespace
+    normalized = normalized.replace(/\s+/g, ' ').trim();
+
+    return normalized;
+  }
+
+  /**
+   * Finds density by trying to match ingredient name against density constants
+   * Handles cases where ingredient name doesn't exactly match constant keys
+   */
+  private findDensityByName(normalizedName: string): number | undefined {
+    const normalizedLower = normalizedName.toLowerCase();
+
+    // Try exact match first
+    for (const [key, value] of Object.entries(INGREDIENT_DENSITIES)) {
+      if (normalizedLower === key.toLowerCase()) {
+        return value;
+      }
+    }
+
+    // Try partial matches (e.g., "chocolate chips" should match "chocolate chips")
+    for (const [key, value] of Object.entries(INGREDIENT_DENSITIES)) {
+      const keyLower = key.toLowerCase();
+      if (
+        normalizedLower.includes(keyLower) ||
+        keyLower.includes(normalizedLower)
+      ) {
+        return value;
+      }
+    }
+
+    return undefined;
+  }
+
   // Add or update an ingredient cost
   addIngredientCost(cost: IngredientInfo): void {
     this.db.ingredients.set(cost.id, cost);
@@ -47,14 +149,19 @@ class IngredientCostDatabase {
 
   // Add ingredient cost, replacing existing if same name found
   addOrUpdateIngredientCost(cost: IngredientInfo): void {
-    const normalizedName = cost.name.toLowerCase().trim();
+    const normalizedNewName = this.normalizeIngredientName(cost.name);
 
-    // Check if we already have an ingredient with this name
+    // Check if we already have an ingredient with a matching normalized name
     for (const [id, existingCost] of this.db.ingredients) {
-      if (existingCost.name.toLowerCase().trim() === normalizedName) {
+      const normalizedExistingName = this.normalizeIngredientName(
+        existingCost.name
+      );
+
+      // Match on normalized names (ignoring descriptive modifiers)
+      if (normalizedExistingName === normalizedNewName) {
         // Replace the existing entry
         console.log(
-          `🔄 Updating existing ingredient: ${cost.name} (replacing ${existingCost.id})`
+          `🔄 Updating existing ingredient: "${cost.name}" (replacing "${existingCost.name}" - normalized: "${normalizedNewName}")`
         );
         this.db.ingredients.delete(id);
         break;
@@ -148,18 +255,64 @@ class IngredientCostDatabase {
     return { removed, kept };
   }
 
-  // Get cost for an ingredient by name (fuzzy search)
+  // Get cost for an ingredient by name (fuzzy search with normalized matching)
+  // Returns the most recent entry when multiple matches exist
   getCostByName(name: string): IngredientInfo | null {
-    const normalizedName = name.toLowerCase().trim();
+    const normalizedSearchName = this.normalizeIngredientName(name);
+    const matches: IngredientInfo[] = [];
 
+    // Collect all exact normalized matches
     for (const cost of this.db.ingredients.values()) {
-      if (
-        cost.name.toLowerCase().includes(normalizedName) ||
-        normalizedName.includes(cost.name.toLowerCase())
-      ) {
-        return cost;
+      const normalizedCostName = this.normalizeIngredientName(cost.name);
+      if (normalizedCostName === normalizedSearchName) {
+        matches.push(cost);
       }
     }
+
+    // If we have exact matches, return the most recent one
+    if (matches.length > 0) {
+      matches.sort((a, b) => {
+        const dateA =
+          a.lastUpdated instanceof Date
+            ? a.lastUpdated
+            : new Date(a.lastUpdated);
+        const dateB =
+          b.lastUpdated instanceof Date
+            ? b.lastUpdated
+            : new Date(b.lastUpdated);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+      return matches[0];
+    }
+
+    // Fallback to fuzzy matching if no exact normalized match
+    const searchLower = normalizedSearchName.toLowerCase();
+    for (const cost of this.db.ingredients.values()) {
+      const normalizedCostName = this.normalizeIngredientName(cost.name);
+      if (
+        normalizedCostName.includes(searchLower) ||
+        searchLower.includes(normalizedCostName)
+      ) {
+        matches.push(cost);
+      }
+    }
+
+    // Return the most recent fuzzy match
+    if (matches.length > 0) {
+      matches.sort((a, b) => {
+        const dateA =
+          a.lastUpdated instanceof Date
+            ? a.lastUpdated
+            : new Date(a.lastUpdated);
+        const dateB =
+          b.lastUpdated instanceof Date
+            ? b.lastUpdated
+            : new Date(b.lastUpdated);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+      return matches[0];
+    }
+
     return null;
   }
 
@@ -270,6 +423,18 @@ class IngredientCostDatabase {
     // Ingredient-specific density conversions (grams per cup)
     // Use imported constants
     const conversions = MEASUREMENT_CONVERSIONS;
+    const measurementLower = measurement.toLowerCase();
+    const ingredientLower = ingredientName?.toLowerCase() || '';
+
+    // Special handling: "ct" or "count" for butter means "stick"
+    // 4 ct or 4 sticks = 1 lb, 1 stick = 113.5g = 1/2 cup
+    if (
+      (measurementLower === 'ct' || measurementLower === 'count') &&
+      ingredientLower.includes('butter')
+    ) {
+      // 1 ct = 1 stick = 113.5g
+      return quantity * 113.5;
+    }
 
     // Note: Fraction handling is done by the recipe parser, which converts
     // fractions like "half cup" to quantity: 0.5, measurement: "cup"
@@ -289,7 +454,6 @@ class IngredientCostDatabase {
       'ounce',
       'ounces',
     ];
-    const measurementLower = measurement.toLowerCase();
 
     // If it's a weight measurement, use weight conversion directly
     if (weightMeasurements.includes(measurementLower)) {
@@ -299,7 +463,16 @@ class IngredientCostDatabase {
 
     // For volume measurements, use ingredient-specific density if available
     if (ingredientName && typeof ingredientName === 'string') {
-      const density = INGREDIENT_DENSITIES[ingredientName.toLowerCase()];
+      // Normalize ingredient name to match density constants (remove parentheses, modifiers, etc.)
+      const normalizedName = this.normalizeIngredientName(ingredientName);
+      const originalLower = ingredientName.toLowerCase();
+
+      // Try normalized name first, then original name, then try partial matches
+      const density =
+        INGREDIENT_DENSITIES[normalizedName] ||
+        INGREDIENT_DENSITIES[originalLower] ||
+        this.findDensityByName(normalizedName);
+
       if (density) {
         // For cup measurements, use the density directly
         if (measurementLower === 'cup' || measurementLower === 'cups') {

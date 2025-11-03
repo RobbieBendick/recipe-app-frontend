@@ -840,34 +840,41 @@ export function RecipePage() {
                             >
                               ${item.costPerGram.toFixed(6)}/gram
                             </Typography>
-                            <Typography
-                              variant='caption'
-                              sx={{ display: 'block', mt: 0.5, mb: 0.5 }}
-                            >
-                              ✅ Price data available
-                            </Typography>
-                            <IconButton
-                              size='small'
-                              color='primary'
-                              onClick={() => {
-                                handleSearchIngredient({
-                                  ingredient: item.ingredient,
-                                  quantity: item.quantity,
-                                  measurement: item.measurement,
-                                });
-                              }}
+                            <Box
                               sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 mt: 0.5,
-                                border: '1px solid',
-                                borderColor: 'primary.main',
-                                '&:hover': {
-                                  backgroundColor: 'primary.light',
-                                  color: 'primary.contrastText',
-                                },
+                                mb: 0.5,
                               }}
                             >
-                              <EditIcon fontSize='small' />
-                            </IconButton>
+                              <Typography variant='caption'>
+                                ✅ Price data available
+                              </Typography>
+                              <IconButton
+                                size='small'
+                                color='primary'
+                                onClick={() => {
+                                  handleSearchIngredient({
+                                    ingredient: item.ingredient,
+                                    quantity: item.quantity,
+                                    measurement: item.measurement,
+                                  });
+                                }}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  padding: '4px',
+                                  '&:hover': {
+                                    backgroundColor: 'primary.light',
+                                    color: 'primary.contrastText',
+                                  },
+                                }}
+                              >
+                                <EditIcon sx={{ fontSize: '16px' }} />
+                              </IconButton>
+                            </Box>
                           </Box>
                         ) : (
                           <Box>
@@ -925,14 +932,14 @@ export function RecipePage() {
                   <Typography
                     variant='h6'
                     fontWeight={600}
-                    color='primary.main'
+                    color='text.primary'
                   >
                     Total Recipe Cost
                   </Typography>
                   <Typography
                     variant='h4'
                     fontWeight={700}
-                    color='primary.main'
+                    color='text.primary'
                   >
                     ${costData.totalCost.toFixed(2)}
                   </Typography>
