@@ -44,9 +44,9 @@ function ResponsiveNavBar() {
   }
 
   const routes: Routes = {
-    Dashboard: ROUTE_PATHS.home,
+    Home: ROUTE_PATHS.home,
     Recipes: ROUTE_PATHS.recipes,
-    'Saved Grocery Lists': ROUTE_PATHS.recentGroceryLists,
+    'Saved Grocery Lists': ROUTE_PATHS.savedGroceryLists,
     'Create Grocery List': ROUTE_PATHS.createGroceryList,
   };
 
@@ -101,9 +101,8 @@ function ResponsiveNavBar() {
               sx={{
                 display: { xs: 'flex', md: 'none' },
                 flexGrow: 1,
-                fontFamily: 'monospace',
                 fontWeight: 700,
-                letterSpacing: '.2rem',
+                letterSpacing: '.1rem',
                 color: 'inherit',
                 textDecoration: 'none',
               }}
