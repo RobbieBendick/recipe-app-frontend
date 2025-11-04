@@ -22,8 +22,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  alpha,
+  keyframes,
 } from '@mui/material';
-import { useContext, useState } from 'react';
+import { styled } from '@mui/material/styles';
+import { useContext, useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { RecipeContext } from '../recipes/recipe-context';
 import { useGroceryList } from '../../contexts/grocery-list-context';
 import { Ingredient, Recipe, MeasurementUnit } from '../../schemas/schemas';
@@ -34,6 +38,110 @@ import CloseIcon from '@mui/icons-material/Close';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RemoveIcon from '@mui/icons-material/Remove';
+import EditIcon from '@mui/icons-material/Edit';
+import SearchIcon from '@mui/icons-material/Search';
+import { SearchIngredientDialog } from '../recipes/dialogs/search-ingredient-dialog';
+
+// Animation keyframes
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled Components
+const ModernCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 3,
+  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+  transition: 'all 0.3s ease',
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+  '&:hover': {
+    boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.12)}`,
+    transform: 'translateY(-2px)',
+  },
+  animation: `${fadeInUp} 0.5s ease-out`,
+}));
+
+const PriceCard = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: theme.spacing(2.5),
+  marginBottom: theme.spacing(2),
+  background: `linear-gradient(135deg, ${alpha(
+    theme.palette.primary.main,
+    0.1
+  )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+  borderRadius: theme.shape.borderRadius * 2,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    borderColor: alpha(theme.palette.primary.main, 0.4),
+    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
+  },
+}));
+
+const WarningBox = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2.5),
+  background: `linear-gradient(135deg, ${alpha(
+    theme.palette.warning.main,
+    0.1
+  )} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
+  borderRadius: theme.shape.borderRadius * 2,
+  border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+  animation: `${fadeInUp} 0.5s ease-out`,
+}));
+
+const ModernListItem = styled(ListItemButton)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  marginBottom: theme.spacing(1),
+  transition: 'all 0.3s ease',
+  border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+    transform: 'translateX(4px)',
+    borderColor: alpha(theme.palette.primary.main, 0.3),
+    boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.1)}`,
+  },
+}));
+
+const PrimaryButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  textTransform: 'none',
+  fontWeight: 600,
+  padding: theme.spacing(1.25, 3),
+  transition: 'all 0.3s ease',
+  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+  },
+}));
+
+const EmptyStateCard = styled(Card)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 3,
+  padding: theme.spacing(6),
+  textAlign: 'center',
+  background: `linear-gradient(135deg, ${alpha(
+    theme.palette.background.paper,
+    0.8
+  )} 0%, ${alpha(theme.palette.background.paper, 0.6)} 100%)`,
+  border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+  transition: 'all 0.3s ease',
+  animation: `${fadeInUp} 0.5s ease-out`,
+  '&:hover': {
+    borderColor: alpha(theme.palette.primary.main, 0.5),
+    background: `linear-gradient(135deg, ${alpha(
+      theme.palette.background.paper,
+      0.9
+    )} 0%, ${alpha(theme.palette.background.paper, 0.7)} 100%)`,
+  },
+}));
 
 // Price display component
 const PriceDisplay = ({ groceryList }: { groceryList: Ingredient[] }) => {
@@ -55,91 +163,139 @@ const PriceDisplay = ({ groceryList }: { groceryList: Ingredient[] }) => {
   return (
     <Box sx={{ mb: 2 }}>
       {/* Total Cost Display */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          p: 2,
-          mb: costData.missingIngredients.length > 0 ? 2 : 0,
-          backgroundColor: 'primary.light',
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'primary.main',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* @ts-expect-error - color is not a valid prop for AttachMoneyIcon */}
-          <AttachMoneyIcon color='text.primary' />
-          <Typography variant='h6' fontWeight={600} color='text.primary'>
-            Total Estimated Cost
-          </Typography>
+      <PriceCard>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              background: theme =>
+                `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.2
+                )} 0%, ${alpha(theme.palette.primary.main, 0.1)} 100%)`,
+            }}
+          >
+            <AttachMoneyIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+          </Box>
+          <Box>
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              sx={{ mb: 0.5, fontWeight: 500 }}
+            >
+              Total Estimated Cost
+            </Typography>
+            <Typography variant='h4' fontWeight={700} color='primary.main'>
+              ${costData.totalCost.toFixed(2)}
+            </Typography>
+          </Box>
         </Box>
-        <Typography
-          variant='h5'
-          fontWeight={700}
-          color='text.primary'
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-          }}
-        >
-          ${costData.totalCost.toFixed(2)}
-        </Typography>
-      </Box>
+      </PriceCard>
 
       {/* Missing Ingredients Display */}
       {costData.missingIngredients.length > 0 && (
-        <Box
-          sx={{
-            p: 2,
-            backgroundColor: 'warning.light',
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'warning.main',
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <WarningBox>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
             <Typography
               variant='subtitle1'
               fontWeight={600}
-              color='text.primary'
+              color='warning.dark'
             >
               ⚠️ Missing Price Data
             </Typography>
           </Box>
-          <Typography variant='body2' color='text.primary' sx={{ mb: 1 }}>
+          <Typography variant='body2' color='text.primary' sx={{ mb: 1.5 }}>
             The following ingredients don't have pricing data and are not
             included in the total:
           </Typography>
-          <Box>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {costData.missingIngredients.map((ingredient, index) => (
-              <Typography
+              <Chip
                 key={index}
-                variant='body2'
-                color='text.primary'
-                sx={{ mb: 0.5 }}
-              >
-                • {ingredient}
-              </Typography>
+                label={ingredient}
+                size='small'
+                sx={{
+                  backgroundColor: theme =>
+                    alpha(theme.palette.warning.main, 0.1),
+                  color: 'warning.dark',
+                  border: theme =>
+                    `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                }}
+              />
             ))}
           </Box>
-        </Box>
+        </WarningBox>
       )}
     </Box>
   );
 };
 
+const STORAGE_KEY = 'createGroceryListState';
+
+interface PersistedState {
+  selectedRecipes: Recipe[];
+  groceryList: Ingredient[];
+  batchMultiplier: { [recipeTitle: string]: number };
+  listName: string;
+}
+
 export function CreateGroceryList() {
   const { savedRecipes } = useContext(RecipeContext);
-  const { addGroceryList } = useGroceryList();
+  const { addGroceryList, getGroceryList, updateGroceryList } =
+    useGroceryList();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Check for edit parameter in URL
+  const searchParams = new URLSearchParams(location.search);
+  const editId = searchParams.get('edit');
+
+  // Load persisted state from localStorage or edit mode
+  const loadInitialState = (): PersistedState => {
+    // If editing, load from saved grocery list
+    if (editId) {
+      const savedList = getGroceryList(editId);
+      if (savedList) {
+        return {
+          selectedRecipes: [], // Recipes aren't saved in grocery list
+          groceryList: savedList.items,
+          batchMultiplier: {},
+          listName: savedList.name,
+        };
+      }
+    }
+
+    // Otherwise, try to load from localStorage
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Error loading create grocery list state:', error);
+    }
+
+    return {
+      selectedRecipes: [],
+      groceryList: [],
+      batchMultiplier: {},
+      listName: '',
+    };
+  };
+
+  const initialState = loadInitialState();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedRecipes, setSelectedRecipes] = useState<Recipe[]>([]);
-  const [groceryList, setGroceryList] = useState<Ingredient[]>([]);
+  const [selectedRecipes, setSelectedRecipes] = useState<Recipe[]>(
+    initialState.selectedRecipes
+  );
+  const [groceryList, setGroceryList] = useState<Ingredient[]>(
+    initialState.groceryList
+  );
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
   const [saveListDialogOpen, setSaveListDialogOpen] = useState(false);
-  const [listName, setListName] = useState('');
+  const [listName, setListName] = useState(initialState.listName);
   const [newItem, setNewItem] = useState({
     title: '',
     quantity: 1,
@@ -147,7 +303,39 @@ export function CreateGroceryList() {
   });
   const [batchMultiplier, setBatchMultiplier] = useState<{
     [recipeTitle: string]: number;
-  }>({});
+  }>(initialState.batchMultiplier);
+  const [editItemDialogOpen, setEditItemDialogOpen] = useState(false);
+  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
+  const [editItem, setEditItem] = useState({
+    title: '',
+    quantity: 1,
+    measurement: MeasurementUnit.CUP,
+  });
+  const [searchIngredientDialogOpen, setSearchIngredientDialogOpen] =
+    useState(false);
+  const [ingredientToSearch, setIngredientToSearch] = useState<{
+    ingredient: string;
+    quantity: number;
+    measurement: string;
+  } | null>(null);
+
+  // Persist state to localStorage whenever it changes
+  useEffect(() => {
+    // Don't persist if we're in edit mode (we'll save when user explicitly saves)
+    if (editId) return;
+
+    try {
+      const stateToPersist: PersistedState = {
+        selectedRecipes,
+        groceryList,
+        batchMultiplier,
+        listName,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToPersist));
+    } catch (error) {
+      console.error('Error saving create grocery list state:', error);
+    }
+  }, [selectedRecipes, groceryList, batchMultiplier, listName, editId]);
 
   // Track which recipes are already in the grocery list
   const getRecipeIngredients = (recipe: Recipe) => {
@@ -260,6 +448,58 @@ export function CreateGroceryList() {
     setGroceryList(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleEditItem = (index: number) => {
+    const item = groceryList[index];
+    setEditingItemIndex(index);
+    setEditItem({
+      title: item.title,
+      quantity: item.quantity,
+      measurement: item.measurement,
+    });
+    setEditItemDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editingItemIndex !== null) {
+      setGroceryList(prev =>
+        prev.map((item, index) =>
+          index === editingItemIndex
+            ? {
+                ...item,
+                title: editItem.title.trim(),
+                quantity: editItem.quantity,
+                measurement: editItem.measurement,
+              }
+            : item
+        )
+      );
+      setEditItemDialogOpen(false);
+      setEditingItemIndex(null);
+      setEditItem({ title: '', quantity: 1, measurement: MeasurementUnit.CUP });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditItemDialogOpen(false);
+    setEditingItemIndex(null);
+    setEditItem({ title: '', quantity: 1, measurement: MeasurementUnit.CUP });
+  };
+
+  const handleSearchIngredient = (ingredient: Ingredient) => {
+    setIngredientToSearch({
+      ingredient: ingredient.title,
+      quantity: ingredient.quantity,
+      measurement: ingredient.measurement,
+    });
+    setSearchIngredientDialogOpen(true);
+  };
+
+  const handleIngredientSearchSuccess = () => {
+    setSearchIngredientDialogOpen(false);
+    setIngredientToSearch(null);
+    // Force re-render by updating a version counter or just let it naturally update
+  };
+
   const handleAddItem = () => {
     if (newItem.title.trim()) {
       const newIngredient: Ingredient = {
@@ -282,12 +522,34 @@ export function CreateGroceryList() {
   const handleSaveList = () => {
     if (groceryList.length > 0) {
       const listNameToUse = listName.trim() || new Date().toLocaleString();
-      addGroceryList({
-        name: listNameToUse,
-        items: groceryList,
-      });
+
+      if (editId) {
+        // Update existing list
+        updateGroceryList(editId, {
+          name: listNameToUse,
+          items: groceryList,
+        });
+        // Navigate back to saved lists
+        navigate('/saved-grocery-lists');
+      } else {
+        // Create new list
+        addGroceryList({
+          name: listNameToUse,
+          items: groceryList,
+        });
+      }
+
+      // Clear persisted state
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (error) {
+        console.error('Error clearing persisted state:', error);
+      }
+
       setListName('');
       setGroceryList([]);
+      setSelectedRecipes([]);
+      setBatchMultiplier({});
       setSaveListDialogOpen(false);
     }
   };
@@ -295,6 +557,20 @@ export function CreateGroceryList() {
   const handleCancelSave = () => {
     setListName('');
     setSaveListDialogOpen(false);
+  };
+
+  const handleClearList = () => {
+    setGroceryList([]);
+    setSelectedRecipes([]);
+    setBatchMultiplier({});
+    setListName('');
+
+    // Clear persisted state
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing persisted state:', error);
+    }
   };
 
   const handleMultiplierChange = (recipeTitle: string, value: number) => {
@@ -346,22 +622,42 @@ export function CreateGroceryList() {
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box
+        sx={{
+          p: 3,
+          borderBottom: theme =>
+            `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+          background: theme =>
+            `linear-gradient(135deg, ${alpha(
+              theme.palette.primary.main,
+              0.05
+            )} 0%, transparent 100%)`,
+        }}
+      >
         <Box
           sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            mb: 1,
           }}
         >
-          <Typography variant='h6' fontWeight={600}>
-            Select Recipes for Grocery List
+          <Typography variant='h6' fontWeight={700} color='text.primary'>
+            Select Recipes
           </Typography>
-          <IconButton onClick={() => toggleDrawer(false)}>
+          <IconButton
+            onClick={() => toggleDrawer(false)}
+            sx={{
+              '&:hover': {
+                backgroundColor: theme => alpha(theme.palette.error.main, 0.1),
+                color: 'error.main',
+              },
+            }}
+          >
             <CloseIcon />
           </IconButton>
         </Box>
-        <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
+        <Typography variant='body2' color='text.secondary'>
           {selectedRecipes.length} recipe
           {selectedRecipes.length !== 1 ? 's' : ''} selected
         </Typography>
@@ -380,10 +676,19 @@ export function CreateGroceryList() {
                   onClick={() => handleRecipeSelect(recipe)}
                   selected={isSelected}
                   sx={{
+                    borderRadius: 2,
+                    mb: 1,
+                    mx: 1,
+                    transition: 'all 0.3s ease',
+                    border: theme =>
+                      `1px solid ${alpha(theme.palette.divider, 0.5)}`,
                     '&.Mui-selected': {
-                      backgroundColor: 'primary.light',
+                      backgroundColor: theme =>
+                        alpha(theme.palette.primary.main, 0.1),
+                      borderColor: theme => theme.palette.primary.main,
                       '&:hover': {
-                        backgroundColor: 'primary.light',
+                        backgroundColor: theme =>
+                          alpha(theme.palette.primary.main, 0.15),
                       },
                     },
                     opacity: recipeStatus.isInList ? 0.7 : 1,
@@ -391,6 +696,13 @@ export function CreateGroceryList() {
                     borderLeftColor: recipeStatus.isInList
                       ? 'success.main'
                       : 'transparent',
+                    '&:hover': {
+                      backgroundColor: theme =>
+                        alpha(theme.palette.primary.main, 0.05),
+                      transform: 'translateX(4px)',
+                      borderColor: theme =>
+                        alpha(theme.palette.primary.main, 0.3),
+                    },
                   }}
                 >
                   <ListItemIcon>
@@ -546,17 +858,27 @@ export function CreateGroceryList() {
       </Box>
 
       {/* Footer with Generate Button */}
-      <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button
+      <Box
+        sx={{
+          p: 3,
+          borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+          background: theme =>
+            `linear-gradient(135deg, transparent 0%, ${alpha(
+              theme.palette.primary.main,
+              0.02
+            )} 100%)`,
+        }}
+      >
+        <PrimaryButton
           variant='contained'
           fullWidth
           onClick={generateGroceryList}
           disabled={selectedRecipes.length === 0}
           startIcon={<AddIcon />}
-          sx={{ mb: 1 }}
+          sx={{ mb: 1.5 }}
         >
           Generate Grocery List ({selectedRecipes.length})
-        </Button>
+        </PrimaryButton>
         <Typography
           variant='caption'
           color='text.secondary'
@@ -570,72 +892,98 @@ export function CreateGroceryList() {
   );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant='h4' gutterBottom color='text.primary'>
-        Create Grocery List
-      </Typography>
-      <Typography variant='body1' color='text.secondary' sx={{ mb: 3 }}>
-        Select recipes to generate a combined grocery list with all ingredients.
-      </Typography>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: '1200px', mx: 'auto' }}>
+      <Box sx={{ mb: 4, animation: `${fadeInUp} 0.5s ease-out` }}>
+        <Typography
+          variant='h3'
+          gutterBottom
+          color='text.primary'
+          fontWeight={700}
+          sx={{ mb: 1 }}
+        >
+          Create Grocery List
+        </Typography>
+        <Typography variant='body1' color='text.secondary'>
+          Select recipes to generate a combined grocery list with all
+          ingredients.
+        </Typography>
+      </Box>
 
       {/* Grocery List Display */}
       {groceryList.length > 0 ? (
-        <Card elevation={3} sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
+        <ModernCard sx={{ mb: 3 }}>
+          <CardContent sx={{ p: { xs: 2, md: 4 } }}>
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                mb: 2,
+                mb: 3,
+                pb: 2,
+                borderBottom: theme =>
+                  `1px solid ${alpha(theme.palette.divider, 0.5)}`,
               }}
             >
-              <Typography variant='h5' fontWeight={600}>
-                Saved Grocery Lists
+              <Typography variant='h5' fontWeight={700} color='text.primary'>
+                Your Grocery List
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Chip
-                  label={`${groceryList.length} items`}
-                  color='primary'
-                  variant='outlined'
-                />
-              </Box>
+              <Chip
+                label={`${groceryList.length} items`}
+                color='primary'
+                sx={{
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                }}
+              />
             </Box>
 
             {/* Add Buttons */}
             <Box
               sx={{
-                mb: 2,
+                mb: 3,
                 display: 'flex',
-                gap: 1,
+                gap: 1.5,
                 flexWrap: 'wrap',
                 justifyContent: 'space-between',
               }}
             >
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                <PrimaryButton
                   variant='contained'
                   startIcon={<AddIcon />}
                   onClick={() => toggleDrawer(true)}
-                  size='small'
+                  size='medium'
                 >
                   Add More Recipes
-                </Button>
-                <Button
+                </PrimaryButton>
+                <PrimaryButton
                   variant='contained'
                   startIcon={<AddIcon />}
                   onClick={() => setAddItemDialogOpen(true)}
-                  size='small'
+                  size='medium'
                   color='secondary'
                 >
                   Add Grocery Item
-                </Button>
+                </PrimaryButton>
               </Box>
               <Button
-                variant='contained'
+                variant='outlined'
                 size='medium'
-                onClick={() => setGroceryList([])}
-                sx={{ minWidth: 'auto', px: 2 }}
+                onClick={handleClearList}
+                sx={{
+                  minWidth: 'auto',
+                  px: 3,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  borderColor: theme => alpha(theme.palette.error.main, 0.5),
+                  color: 'error.main',
+                  '&:hover': {
+                    borderColor: 'error.main',
+                    backgroundColor: theme =>
+                      alpha(theme.palette.error.main, 0.1),
+                  },
+                }}
               >
                 Clear
               </Button>
@@ -645,44 +993,88 @@ export function CreateGroceryList() {
             <PriceDisplay groceryList={groceryList} />
 
             {/* Save Button */}
-            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+              <PrimaryButton
                 variant='contained'
                 onClick={() => setSaveListDialogOpen(true)}
-                size='medium'
+                size='large'
                 color='success'
                 disabled={groceryList.length === 0}
+                sx={{
+                  boxShadow: theme =>
+                    `0 2px 8px ${alpha(theme.palette.success.main, 0.3)}`,
+                  '&:hover': {
+                    boxShadow: theme =>
+                      `0 4px 16px ${alpha(theme.palette.success.main, 0.4)}`,
+                  },
+                }}
               >
                 Save Grocery List
-              </Button>
+              </PrimaryButton>
             </Box>
-            <List>
+            <List sx={{ px: 0 }}>
               {groceryList.map((ingredient, index) => (
-                <ListItem key={index} sx={{ px: 0 }}>
-                  <ListItemButton sx={{ borderRadius: 2, mb: 1 }}>
+                <ListItem
+                  key={index}
+                  sx={{
+                    px: 0,
+                    animation: `${fadeInUp} 0.3s ease-out ${
+                      index * 0.05
+                    }s both`,
+                  }}
+                >
+                  <ModernListItem>
                     <ListItemIcon>
                       <Avatar
-                        sx={{ width: 32, height: 32, bgcolor: 'primary.light' }}
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          background: theme =>
+                            `linear-gradient(135deg, ${
+                              theme.palette.primary.main
+                            } 0%, ${
+                              theme.palette.primary.dark ||
+                              theme.palette.primary.main
+                            } 100%)`,
+                        }}
                       >
                         <RestaurantIcon fontSize='small' />
                       </Avatar>
                     </ListItemIcon>
                     <ListItemText
-                      primary={ingredient.title}
+                      primary={
+                        <Typography
+                          variant='subtitle1'
+                          fontWeight={600}
+                          color='text.primary'
+                        >
+                          {ingredient.title}
+                        </Typography>
+                      }
                       secondary={
                         <Box
                           sx={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: 1,
-                            mt: 0.5,
+                            mt: 1,
+                            flexWrap: 'wrap',
                           }}
                         >
                           <Chip
                             label={`${ingredient.quantity} ${ingredient.measurement}`}
                             size='small'
-                            color='primary'
-                            variant='outlined'
+                            sx={{
+                              backgroundColor: theme =>
+                                alpha(theme.palette.primary.main, 0.1),
+                              color: 'primary.main',
+                              fontWeight: 600,
+                              border: theme =>
+                                `1px solid ${alpha(
+                                  theme.palette.primary.main,
+                                  0.3
+                                )}`,
+                            }}
                           />
                           <Chip
                             label={`$${(() => {
@@ -697,70 +1089,145 @@ export function CreateGroceryList() {
                               return costData.totalCost.toFixed(2);
                             })()}`}
                             size='small'
-                            color='success'
-                            variant='filled'
+                            sx={{
+                              backgroundColor: theme =>
+                                alpha(theme.palette.success.main, 0.2),
+                              color: 'success.dark',
+                              fontWeight: 700,
+                              border: theme =>
+                                `1px solid ${alpha(
+                                  theme.palette.success.main,
+                                  0.4
+                                )}`,
+                            }}
                           />
                         </Box>
                       }
                     />
-                    <IconButton
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleDeleteItem(index);
-                      }}
-                      color='error'
-                      size='small'
-                      sx={{
-                        '&:hover': {
-                          backgroundColor: 'error.light',
-                          color: 'white',
-                        },
-                      }}
-                    >
-                      <DeleteIcon fontSize='small' />
-                    </IconButton>
-                  </ListItemButton>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <IconButton
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleSearchIngredient(ingredient);
+                        }}
+                        size='small'
+                        sx={{
+                          color: 'primary.main',
+                          transition: 'all 0.3s ease',
+                          border: theme =>
+                            `1px solid ${alpha(
+                              theme.palette.primary.main,
+                              0.3
+                            )}`,
+                          '&:hover': {
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                        title='Search Kroger Prices'
+                      >
+                        <SearchIcon fontSize='small' />
+                      </IconButton>
+                      <IconButton
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleEditItem(index);
+                        }}
+                        size='small'
+                        sx={{
+                          color: 'primary.main',
+                          transition: 'all 0.3s ease',
+                          border: theme =>
+                            `1px solid ${alpha(
+                              theme.palette.primary.main,
+                              0.3
+                            )}`,
+                          '&:hover': {
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                        title='Edit Quantity'
+                      >
+                        <EditIcon fontSize='small' />
+                      </IconButton>
+                      <IconButton
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteItem(index);
+                        }}
+                        size='small'
+                        sx={{
+                          color: 'error.main',
+                          transition: 'all 0.3s ease',
+                          border: theme =>
+                            `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
+                          '&:hover': {
+                            backgroundColor: 'error.main',
+                            color: 'white',
+                            transform: 'scale(1.1)',
+                          },
+                        }}
+                        title='Delete Item'
+                      >
+                        <DeleteIcon fontSize='small' />
+                      </IconButton>
+                    </Box>
+                  </ModernListItem>
                 </ListItem>
               ))}
             </List>
           </CardContent>
-        </Card>
+        </ModernCard>
       ) : (
-        <Card elevation={2}>
-          <CardContent sx={{ p: 4, textAlign: 'center' }}>
-            <RestaurantIcon
-              sx={{ fontSize: 64, color: 'primary.main', mb: 2 }}
-            />
-            <Typography variant='h6' gutterBottom>
-              Start Building Your Grocery List
-            </Typography>
-            <Typography variant='body2' color='text.secondary' sx={{ mb: 3 }}>
-              Choose from your saved recipes to create a comprehensive shopping
-              list.
-            </Typography>
-            <Button
-              variant='contained'
-              size='large'
-              onClick={() => toggleDrawer(true)}
-              startIcon={<AddIcon />}
-              disabled={savedRecipes.length === 0}
+        <EmptyStateCard>
+          <Box
+            sx={{
+              p: 3,
+              borderRadius: '50%',
+              background: theme =>
+                `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.1
+                )} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              display: 'inline-flex',
+              mb: 3,
+            }}
+          >
+            <RestaurantIcon sx={{ fontSize: 64, color: 'primary.main' }} />
+          </Box>
+          <Typography variant='h5' gutterBottom fontWeight={700}>
+            Start Building Your Grocery List
+          </Typography>
+          <Typography variant='body1' color='text.secondary' sx={{ mb: 4 }}>
+            Choose from your saved recipes to create a comprehensive shopping
+            list.
+          </Typography>
+          <PrimaryButton
+            variant='contained'
+            size='large'
+            onClick={() => toggleDrawer(true)}
+            startIcon={<AddIcon />}
+            disabled={savedRecipes.length === 0}
+            sx={{ px: 4, py: 1.5 }}
+          >
+            {savedRecipes.length === 0
+              ? 'No Recipes Available'
+              : 'Select Recipes'}
+          </PrimaryButton>
+          {savedRecipes.length === 0 && (
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              display='block'
+              sx={{ mt: 3 }}
             >
-              {savedRecipes.length === 0
-                ? 'No Recipes Available'
-                : 'Select Recipes'}
-            </Button>
-            {savedRecipes.length === 0 && (
-              <Typography
-                variant='caption'
-                color='text.secondary'
-                display='block'
-                sx={{ mt: 2 }}
-              >
-                Add some recipes first to create a grocery list
-              </Typography>
-            )}
-          </CardContent>
-        </Card>
+              Add some recipes first to create a grocery list
+            </Typography>
+          )}
+        </EmptyStateCard>
       )}
 
       <Drawer
@@ -887,6 +1354,101 @@ export function CreateGroceryList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Edit Item Dialog */}
+      <Dialog
+        open={editItemDialogOpen}
+        onClose={handleCancelEdit}
+        maxWidth='sm'
+        fullWidth
+      >
+        <DialogTitle>Edit Grocery Item</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              fullWidth
+              label='Item Name'
+              value={editItem.title}
+              onChange={e =>
+                setEditItem(prev => ({ ...prev, title: e.target.value }))
+              }
+              variant='outlined'
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label='Quantity'
+                type='number'
+                value={editItem.quantity}
+                onChange={e =>
+                  setEditItem(prev => ({
+                    ...prev,
+                    quantity: parseFloat(e.target.value) || 1,
+                  }))
+                }
+                inputProps={{ min: 0.1, step: 0.1 }}
+                sx={{ flex: 1 }}
+              />
+              <FormControl sx={{ flex: 1 }}>
+                <InputLabel>Measurement</InputLabel>
+                <Select
+                  value={editItem.measurement}
+                  onChange={e =>
+                    setEditItem(prev => ({
+                      ...prev,
+                      measurement: e.target.value as MeasurementUnit,
+                    }))
+                  }
+                  label='Measurement'
+                >
+                  <MenuItem value={MeasurementUnit.CUP}>Cup</MenuItem>
+                  <MenuItem value={MeasurementUnit.TABLESPOON}>
+                    Tablespoon
+                  </MenuItem>
+                  <MenuItem value={MeasurementUnit.TEASPOON}>Teaspoon</MenuItem>
+                  <MenuItem value={MeasurementUnit.LB}>Pound</MenuItem>
+                  <MenuItem value={MeasurementUnit.OZ}>Ounce</MenuItem>
+                  <MenuItem value={MeasurementUnit.GRAM}>Gram</MenuItem>
+                  <MenuItem value={MeasurementUnit.KILOGRAM}>Kilogram</MenuItem>
+                  <MenuItem value={MeasurementUnit.WHOLE}>Whole</MenuItem>
+                  <MenuItem value={MeasurementUnit.CAN}>Can</MenuItem>
+                  <MenuItem value={MeasurementUnit.BOTTLE}>Bottle</MenuItem>
+                  <MenuItem value={MeasurementUnit.STICK}>Stick</MenuItem>
+                  <MenuItem value={MeasurementUnit.PINT}>Pint</MenuItem>
+                  <MenuItem value={MeasurementUnit.QUART}>Quart</MenuItem>
+                  <MenuItem value={MeasurementUnit.GALLON}>Gallon</MenuItem>
+                  <MenuItem value={MeasurementUnit.MILLILITER}>
+                    Milliliter
+                  </MenuItem>
+                  <MenuItem value={MeasurementUnit.LITER}>Liter</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelEdit}>Cancel</Button>
+          <Button
+            onClick={handleSaveEdit}
+            variant='contained'
+            disabled={!editItem.title.trim()}
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Search Ingredient Dialog */}
+      {ingredientToSearch && (
+        <SearchIngredientDialog
+          open={searchIngredientDialogOpen}
+          onClose={() => {
+            setSearchIngredientDialogOpen(false);
+            setIngredientToSearch(null);
+          }}
+          ingredient={ingredientToSearch}
+          onSuccess={handleIngredientSearchSuccess}
+        />
+      )}
     </Box>
   );
 }

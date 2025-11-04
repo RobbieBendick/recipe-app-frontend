@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { Ingredient } from '../schemas/schemas';
 
 export interface GroceryList {
@@ -8,6 +14,8 @@ export interface GroceryList {
   createdAt: Date;
   lastUpdated: Date;
 }
+
+const STORAGE_KEY = 'groceryLists';
 
 interface GroceryListContextType {
   groceryLists: GroceryList[];
@@ -38,7 +46,39 @@ interface GroceryListProviderProps {
 export const GroceryListProvider: React.FC<GroceryListProviderProps> = ({
   children,
 }) => {
-  const [groceryLists, setGroceryLists] = useState<GroceryList[]>([]);
+  // Load from localStorage on mount
+  const [groceryLists, setGroceryLists] = useState<GroceryList[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Array<{
+          id: string;
+          name: string;
+          items: Ingredient[];
+          createdAt: string;
+          lastUpdated: string;
+        }>;
+        // Convert date strings back to Date objects
+        return parsed.map(list => ({
+          ...list,
+          createdAt: new Date(list.createdAt),
+          lastUpdated: new Date(list.lastUpdated),
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading grocery lists from localStorage:', error);
+    }
+    return [];
+  });
+
+  // Save to localStorage whenever groceryLists changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(groceryLists));
+    } catch (error) {
+      console.error('Error saving grocery lists to localStorage:', error);
+    }
+  }, [groceryLists]);
 
   const addGroceryList = (
     groceryList: Omit<GroceryList, 'id' | 'createdAt' | 'lastUpdated'>

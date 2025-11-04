@@ -6,9 +6,9 @@ import {
   Grid,
   Card,
   CardContent,
-  useTheme,
   alpha,
   keyframes,
+  styled,
 } from '@mui/material';
 import {
   ShoppingCart,
@@ -92,8 +92,235 @@ const rotate = keyframes`
   }
 `;
 
+// Styled Components
+const AnimatedBackground = styled(Box)(({ theme }) => ({
+  minHeight: '90vh',
+  width: '100%',
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: '-50%',
+    left: '-50%',
+    width: '200%',
+    height: '200%',
+    animation: `${rotate} 20s linear infinite`,
+    pointerEvents: 'none',
+  },
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    top: '20%',
+    right: '-10%',
+    width: '400px',
+    height: '400px',
+    background: `radial-gradient(circle, ${alpha(
+      theme.palette.primary.main,
+      0.08
+    )} 0%, transparent 70%)`,
+    borderRadius: '50%',
+    animation: `${pulse} 4s ease-in-out infinite`,
+    pointerEvents: 'none',
+  },
+}));
+
+const HeroContainer = styled(Box)(({ theme }) => ({
+  textAlign: 'center',
+  padding: theme.spacing(4, 6),
+  borderRadius: theme.shape.borderRadius * 3,
+  backgroundColor:
+    theme.palette.mode === 'light'
+      ? alpha(theme.palette.background.default, 0.8)
+      : alpha(theme.palette.background.default, 0.5),
+  marginBottom: theme.spacing(6),
+  [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(4),
+    marginBottom: theme.spacing(6),
+  },
+}));
+
+const HeroTitle = styled(Typography)(({ theme }) => ({
+  fontSize: '4rem',
+  fontWeight: 700,
+  marginBottom: theme.spacing(2),
+  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${
+    theme.palette.primary.dark || theme.palette.primary.main
+  } 100%)`,
+  backgroundClip: 'text',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  lineHeight: 1.2,
+  animation: `${fadeInUp} 0.8s ease-out`,
+  position: 'relative',
+  [theme.breakpoints.down('md')]: {
+    fontSize: '2.5rem',
+  },
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    bottom: '-10px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '100px',
+    height: '4px',
+    background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}, transparent)`,
+    borderRadius: '2px',
+    animation: `${fadeIn} 1s ease-out 0.5s both`,
+  },
+}));
+
+const HeroSubtitle = styled(Typography)(({ theme }) => ({
+  fontSize: '1.5rem',
+  color: theme.palette.text.secondary,
+  marginBottom: theme.spacing(4),
+  maxWidth: '700px',
+  margin: '0 auto',
+  lineHeight: 1.6,
+  animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
+  [theme.breakpoints.down('md')]: {
+    fontSize: '1.1rem',
+  },
+}));
+
+const ButtonContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  marginTop: theme.spacing(4),
+  gap: theme.spacing(4),
+  justifyContent: 'center',
+  flexWrap: 'wrap',
+  animation: `${fadeInUp} 0.8s ease-out 0.4s both`,
+}));
+
+const PrimaryButton = styled(Button)(({ theme }) => ({
+  padding: theme.spacing(1.5, 4),
+  fontSize: '1.1rem',
+  textTransform: 'none',
+  borderRadius: theme.shape.borderRadius * 2,
+  transition: 'all 0.3s ease',
+  position: 'relative',
+  overflow: 'hidden',
+  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${
+    theme.palette.primary.dark || theme.palette.primary.main
+  } 100%)`,
+  backgroundSize: '200% 200%',
+  animation: `${gradientShift} 3s ease infinite`,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 0,
+    height: 0,
+    borderRadius: '50%',
+    background: alpha(theme.palette.common.white, 0.3),
+    transform: 'translate(-50%, -50%)',
+    transition: 'width 0.6s, height 0.6s',
+  },
+  '&:hover': {
+    transform: 'translateY(-2px) scale(1.05)',
+    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.4)}`,
+    '&::before': {
+      width: '300px',
+      height: '300px',
+    },
+    '& .MuiButton-endIcon': {
+      transform: 'translateX(4px)',
+    },
+  },
+  '& .MuiButton-endIcon': {
+    transition: 'transform 0.3s ease',
+  },
+}));
+
+const SecondaryButton = styled(Button)(({ theme }) => ({
+  padding: theme.spacing(1.5, 4),
+  fontSize: '1.1rem',
+  textTransform: 'none',
+  borderRadius: theme.shape.borderRadius * 2,
+  transition: 'all 0.3s ease',
+  position: 'relative',
+  borderWidth: 2,
+  '&:hover': {
+    transform: 'translateY(-2px) scale(1.05)',
+    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+    borderWidth: 2,
+    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
+  },
+}));
+
+const FeatureCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'all 0.3s ease-in-out',
+  borderRadius: theme.shape.borderRadius * 3,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+  position: 'relative',
+  overflow: 'hidden',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: '-100%',
+    width: '100%',
+    height: '100%',
+    background: `linear-gradient(90deg, transparent, ${alpha(
+      theme.palette.primary.main,
+      0.1
+    )}, transparent)`,
+    transition: 'left 0.5s ease',
+  },
+  '&:hover': {
+    transform: 'translateY(-8px) scale(1.02)',
+    boxShadow: `0 12px 32px ${alpha(theme.palette.primary.main, 0.25)}`,
+    borderColor: alpha(theme.palette.primary.main, 0.4),
+    '&::before': {
+      left: '100%',
+    },
+  },
+}));
+
+const IconContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'center',
+  marginBottom: theme.spacing(3),
+  color: theme.palette.primary.main,
+  animation: `${float} 3s ease-in-out infinite`,
+}));
+
+const CallToActionBox = styled(Box)(({ theme }) => ({
+  marginTop: theme.spacing(8),
+  textAlign: 'center',
+  padding: theme.spacing(4, 6),
+  borderRadius: theme.shape.borderRadius * 3,
+  backgroundSize: '200% 200%',
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+  position: 'relative',
+  overflow: 'hidden',
+  animation: `${fadeInUp} 0.8s ease-out 1s both`,
+  transition: 'all 0.3s ease-in-out',
+  [theme.breakpoints.down('md')]: {
+    marginTop: theme.spacing(8),
+    padding: theme.spacing(4),
+  },
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: '-50%',
+    right: '-50%',
+    width: '200%',
+    height: '200%',
+    animation: `${pulse} 4s ease-in-out infinite`,
+    pointerEvents: 'none',
+  },
+  '&:hover': {
+    borderColor: alpha(theme.palette.primary.main, 0.4),
+    boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.15)}`,
+  },
+}));
+
 export function Home() {
-  const theme = useTheme();
   const navigate = useNavigate();
 
   const features = [
@@ -124,248 +351,46 @@ export function Home() {
   ];
 
   return (
-    <Box
-      sx={{
-        minHeight: '90vh',
-        width: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: '-50%',
-          left: '-50%',
-          width: '200%',
-          height: '200%',
-          animation: `${rotate} 20s linear infinite`,
-          pointerEvents: 'none',
-        },
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          top: '20%',
-          right: '-10%',
-          width: '400px',
-          height: '400px',
-          background: `radial-gradient(circle, ${alpha(
-            theme.palette.primary.main,
-            0.08
-          )} 0%, transparent 70%)`,
-          borderRadius: '50%',
-          animation: `${pulse} 4s ease-in-out infinite`,
-          pointerEvents: 'none',
-        },
-      }}
-    >
-      {/* Hero Section */}
+    <AnimatedBackground>
       <Container maxWidth='lg' sx={{ py: { xs: 6, md: 10 } }}>
-        <Box
-          sx={{
-            textAlign: 'center',
-            mb: { xs: 6, md: 10 },
-            p: { xs: 4, md: 6 },
-            borderRadius: 3,
-            backgroundColor:
-              theme.palette.mode === 'light'
-                ? alpha(theme.palette.background.default, 0.8)
-                : alpha(theme.palette.background.default, 0.5),
-          }}
-        >
-          <Typography
-            variant='h1'
-            sx={{
-              fontSize: { xs: '2.5rem', md: '4rem' },
-              fontWeight: 700,
-              mb: 2,
-              background: `linear-gradient(135deg, ${
-                theme.palette.primary.main
-              } 0%, ${
-                theme.palette.primary.dark || theme.palette.primary.main
-              } 100%)`,
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              lineHeight: 1.2,
-              animation: `${fadeInUp} 0.8s ease-out`,
-              position: 'relative',
-              '&::after': {
-                content: '""',
-                position: 'absolute',
-                bottom: '-10px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '100px',
-                height: '4px',
-                background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}, transparent)`,
-                borderRadius: '2px',
-                animation: `${fadeIn} 1s ease-out 0.5s both`,
-              },
-            }}
-          >
-            Recipe Shopper
-          </Typography>
-          <Typography
-            variant='h5'
-            sx={{
-              fontSize: { xs: '1.1rem', md: '1.5rem' },
-              color: 'text.secondary',
-              mb: 4,
-              maxWidth: '700px',
-              mx: 'auto',
-              lineHeight: 1.6,
-              animation: `${fadeInUp} 0.8s ease-out 0.2s both`,
-            }}
-          >
+        <HeroContainer>
+          <HeroTitle variant='h1'>Recipe Shopper</HeroTitle>
+          <HeroSubtitle variant='h5'>
             Simplify your grocery shopping with smart lists, recipe integration,
             and real-time price tracking from Kroger.
-          </Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              animation: `${fadeInUp} 0.8s ease-out 0.4s both`,
-            }}
-          >
-            <Button
+          </HeroSubtitle>
+          <ButtonContainer>
+            <PrimaryButton
               variant='contained'
               size='large'
               endIcon={<ArrowForward />}
               onClick={() => navigate(ROUTE_PATHS.createGroceryList)}
-              sx={{
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                textTransform: 'none',
-                borderRadius: 2,
-                transition: 'all 0.3s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                background: `linear-gradient(135deg, ${
-                  theme.palette.primary.main
-                } 0%, ${
-                  theme.palette.primary.dark || theme.palette.primary.main
-                } 100%)`,
-                backgroundSize: '200% 200%',
-                animation: `${gradientShift} 3s ease infinite`,
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: 0,
-                  height: 0,
-                  borderRadius: '50%',
-                  background: alpha(theme.palette.common.white, 0.3),
-                  transform: 'translate(-50%, -50%)',
-                  transition: 'width 0.6s, height 0.6s',
-                },
-                '&:hover': {
-                  transform: 'translateY(-2px) scale(1.05)',
-                  boxShadow: `0 8px 24px ${alpha(
-                    theme.palette.primary.main,
-                    0.4
-                  )}`,
-                  '&::before': {
-                    width: '300px',
-                    height: '300px',
-                  },
-                  '& .MuiButton-endIcon': {
-                    transform: 'translateX(4px)',
-                  },
-                },
-                '& .MuiButton-endIcon': {
-                  transition: 'transform 0.3s ease',
-                },
-              }}
             >
               Get Started
-            </Button>
-            <Button
+            </PrimaryButton>
+            <SecondaryButton
               variant='outlined'
               size='large'
               onClick={() => navigate(ROUTE_PATHS.recipes)}
-              sx={{
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                textTransform: 'none',
-                borderRadius: 2,
-                transition: 'all 0.3s ease',
-                position: 'relative',
-                borderWidth: 2,
-                '&:hover': {
-                  transform: 'translateY(-2px) scale(1.05)',
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                  borderWidth: 2,
-                  boxShadow: `0 4px 12px ${alpha(
-                    theme.palette.primary.main,
-                    0.2
-                  )}`,
-                },
-              }}
             >
               Browse Recipes
-            </Button>
-          </Box>
-        </Box>
+            </SecondaryButton>
+          </ButtonContainer>
+        </HeroContainer>
 
         {/* Features Section */}
         <Grid container spacing={4} sx={{ mt: 2 }}>
           {features.map((feature, index) => (
             <Grid item xs={12} md={4} key={index}>
-              <Card
+              <FeatureCard
                 sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'all 0.3s ease-in-out',
-                  borderRadius: 3,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
                   animation: `${scaleIn} 0.6s ease-out ${
                     0.6 + index * 0.1
                   }s both`,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: `linear-gradient(90deg, transparent, ${alpha(
-                      theme.palette.primary.main,
-                      0.1
-                    )}, transparent)`,
-                    transition: 'left 0.5s ease',
-                  },
-                  '&:hover': {
-                    transform: 'translateY(-8px) scale(1.02)',
-                    boxShadow: `0 12px 32px ${alpha(
-                      theme.palette.primary.main,
-                      0.25
-                    )}`,
-                    borderColor: alpha(theme.palette.primary.main, 0.4),
-                    '&::before': {
-                      left: '100%',
-                    },
-                  },
                 }}
               >
                 <CardContent sx={{ flexGrow: 1, p: 4 }}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      mb: 3,
-                      color: 'primary.main',
-                      animation: `${float} 3s ease-in-out infinite`,
-                    }}
-                  >
-                    {feature.icon}
-                  </Box>
+                  <IconContainer>{feature.icon}</IconContainer>
                   <Typography
                     variant='h5'
                     sx={{
@@ -401,46 +426,13 @@ export function Home() {
                     </Button>
                   </Box>
                 </CardContent>
-              </Card>
+              </FeatureCard>
             </Grid>
           ))}
         </Grid>
 
         {/* Call to Action Section */}
-        <Box
-          sx={{
-            mt: { xs: 8, md: 12 },
-            textAlign: 'center',
-            p: { xs: 4, md: 6 },
-            borderRadius: 3,
-            backgroundSize: '200% 200%',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-            position: 'relative',
-            overflow: 'hidden',
-            animation: `${fadeInUp} 0.8s ease-out 1s both`,
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: '-50%',
-              right: '-50%',
-              width: '200%',
-              height: '200%',
-              background: `radial-gradient(circle, ${alpha(
-                theme.palette.primary.main,
-                0.1
-              )} 0%, transparent 70%)`,
-              animation: `${pulse} 4s ease-in-out infinite`,
-              pointerEvents: 'none',
-            },
-            '&:hover': {
-              borderColor: alpha(theme.palette.primary.main, 0.4),
-              boxShadow: `0 8px 24px ${alpha(
-                theme.palette.primary.main,
-                0.15
-              )}`,
-            },
-          }}
-        >
+        <CallToActionBox>
           <Typography
             variant='h4'
             sx={{
@@ -463,23 +455,16 @@ export function Home() {
             Start creating your first grocery list or explore our recipe
             collection to get started.
           </Typography>
-          <Button
+          <PrimaryButton
             variant='contained'
             size='large'
             endIcon={<ArrowForward />}
             onClick={() => navigate(ROUTE_PATHS.createGroceryList)}
-            sx={{
-              px: 4,
-              py: 1.5,
-              fontSize: '1.1rem',
-              textTransform: 'none',
-              borderRadius: 2,
-            }}
           >
             Create Your First List
-          </Button>
-        </Box>
+          </PrimaryButton>
+        </CallToActionBox>
       </Container>
-    </Box>
+    </AnimatedBackground>
   );
 }
