@@ -205,17 +205,44 @@ export const SearchIngredientDialog: React.FC<SearchIngredientDialogProps> = ({
     if (!selectedProduct) return;
 
     try {
-      // Parse weight from size
-      const weightInGrams = krogerAPI.parseWeightFromSize(
-        selectedProduct.size,
-        selectedProduct.description
-      );
+      // Check if this is a count-based measurement (roll, whole, ct, etc.)
+      const isCountBasedMeasurement =
+        ingredient.measurement.toLowerCase() === 'roll' ||
+        ingredient.measurement.toLowerCase() === 'rolls' ||
+        ingredient.measurement.toLowerCase() === 'whole' ||
+        ingredient.measurement.toLowerCase() === 'ct' ||
+        ingredient.measurement.toLowerCase() === 'count';
 
-      if (weightInGrams instanceof Error || weightInGrams <= 0) {
-        setError(
-          'Could not determine weight from product size. Please use the manual add option.'
+      let weightInGrams: number;
+
+      if (isCountBasedMeasurement) {
+        // For count-based measurements, try to parse the count from the product size
+        // For rolls, we'll treat each roll as 1 unit for cost calculation
+        const countMatch = selectedProduct.size.match(
+          /(\d+(?:\.\d+)?)\s*(roll|rolls|ct|whole|count)/i
         );
-        return;
+        if (countMatch) {
+          const count = parseFloat(countMatch[1]);
+          // Use count as weight for cost calculation (1 roll = 1 gram for cost purposes)
+          weightInGrams = count;
+        } else {
+          // If we can't parse count, default to 1
+          weightInGrams = 1;
+        }
+      } else {
+        // Parse weight from size for weight-based measurements
+        const parsedWeight = krogerAPI.parseWeightFromSize(
+          selectedProduct.size,
+          selectedProduct.description
+        );
+
+        if (parsedWeight instanceof Error || parsedWeight <= 0) {
+          setError(
+            'Could not determine weight from product size. Please use the manual add option.'
+          );
+          return;
+        }
+        weightInGrams = parsedWeight;
       }
 
       if (!selectedProduct.price?.regular) {
@@ -223,9 +250,8 @@ export const SearchIngredientDialog: React.FC<SearchIngredientDialogProps> = ({
         return;
       }
 
-      // Calculate cost per gram
-      const costPerGram =
-        selectedProduct.price.regular / (weightInGrams as number);
+      // Calculate cost per gram (or cost per unit for count-based items)
+      const costPerGram = selectedProduct.price.regular / weightInGrams;
 
       // Add to ingredient cost database
       ingredientCostDB.addOrUpdateIngredientCost({
@@ -414,10 +440,22 @@ export const SearchIngredientDialog: React.FC<SearchIngredientDialogProps> = ({
                   const hasValidPrice =
                     product.price?.regular !== undefined &&
                     product.price.regular > 0;
-                  const isValid =
-                    !(weightInGrams instanceof Error) &&
-                    weightInGrams > 0 &&
-                    hasValidPrice;
+
+                  // Check if this is a count-based measurement (roll, whole, ct, etc.)
+                  const isCountBasedMeasurement =
+                    ingredient.measurement.toLowerCase() === 'roll' ||
+                    ingredient.measurement.toLowerCase() === 'rolls' ||
+                    ingredient.measurement.toLowerCase() === 'whole' ||
+                    ingredient.measurement.toLowerCase() === 'ct' ||
+                    ingredient.measurement.toLowerCase() === 'count';
+
+                  // For count-based measurements, only require valid price
+                  // For weight-based measurements, require valid weight parsing
+                  const isValid = isCountBasedMeasurement
+                    ? hasValidPrice
+                    : !(weightInGrams instanceof Error) &&
+                      weightInGrams > 0 &&
+                      hasValidPrice;
                   const isSelected =
                     selectedProduct?.productId === product.productId;
 

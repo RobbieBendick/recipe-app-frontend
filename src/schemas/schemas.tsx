@@ -33,4 +33,5 @@ export enum MeasurementUnit {
   QUARTER = 'quarter',
   BOTTLE = 'bottle',
   STICK = 'stick',
+  ROLL = 'roll',
 }

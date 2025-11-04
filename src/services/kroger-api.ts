@@ -769,6 +769,10 @@ class KrogerAPIService {
       `📏 Available measurement units: ${measurementUnits.join(', ')}`
     );
 
+    if (ingredientName.toLowerCase().includes('roll')) {
+      return Error(`Could not parse weight from: "${size}"`);
+    }
+
     // Try multiple patterns to extract weight
     const patterns = [
       // Standard patterns: "1 lb", "16 oz", "500g", "10 fl oz"
@@ -785,6 +789,8 @@ class KrogerAPIService {
       /(\d+(?:\.\d+)?)\s*(ct)(?:\s|$)/,
       // Whole patterns: "2 whole carrots", "1 whole chicken"
       /(\d+(?:\.\d+)?)\s*whole\s+\w+/,
+      // Roll patterns: "6 rolls", "1 roll", "12 roll"
+      /(\d+(?:\.\d+)?)\s*(roll|rolls)\b/,
     ];
 
     for (const pattern of patterns) {

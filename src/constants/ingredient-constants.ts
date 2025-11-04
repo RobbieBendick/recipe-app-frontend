@@ -217,6 +217,8 @@ export const WHOLE_ITEM_MEASUREMENTS: string[] = [
   'cloves',
   'head',
   'heads',
+  'roll',
+  'rolls',
 ];
 
 // Fraction measurements

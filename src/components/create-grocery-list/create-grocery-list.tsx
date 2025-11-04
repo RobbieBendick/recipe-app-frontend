@@ -41,6 +41,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import EditIcon from '@mui/icons-material/Edit';
 import SearchIcon from '@mui/icons-material/Search';
 import { SearchIngredientDialog } from '../recipes/dialogs/search-ingredient-dialog';
+import { pluralizeMeasurement } from '../../helpers/helpers';
 
 // Animation keyframes
 const fadeInUp = keyframes`
@@ -537,6 +538,8 @@ export function CreateGroceryList() {
           name: listNameToUse,
           items: groceryList,
         });
+        // Navigate to saved lists to see the newly created list
+        navigate('/saved-grocery-lists');
       }
 
       // Clear persisted state
@@ -1062,7 +1065,12 @@ export function CreateGroceryList() {
                           }}
                         >
                           <Chip
-                            label={`${ingredient.quantity} ${ingredient.measurement}`}
+                            label={`${
+                              ingredient.quantity
+                            } ${pluralizeMeasurement(
+                              ingredient.quantity,
+                              ingredient.measurement
+                            )}`}
                             size='small'
                             sx={{
                               backgroundColor: theme =>
@@ -1202,31 +1210,39 @@ export function CreateGroceryList() {
             Start Building Your Grocery List
           </Typography>
           <Typography variant='body1' color='text.secondary' sx={{ mb: 4 }}>
-            Choose from your saved recipes to create a comprehensive shopping
-            list.
+            Add items manually or select from your saved recipes to create a
+            comprehensive shopping list.
           </Typography>
-          <PrimaryButton
-            variant='contained'
-            size='large'
-            onClick={() => toggleDrawer(true)}
-            startIcon={<AddIcon />}
-            disabled={savedRecipes.length === 0}
-            sx={{ px: 4, py: 1.5 }}
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+            }}
           >
-            {savedRecipes.length === 0
-              ? 'No Recipes Available'
-              : 'Select Recipes'}
-          </PrimaryButton>
-          {savedRecipes.length === 0 && (
-            <Typography
-              variant='body2'
-              color='text.secondary'
-              display='block'
-              sx={{ mt: 3 }}
+            <PrimaryButton
+              variant='contained'
+              size='large'
+              onClick={() => toggleDrawer(true)}
+              startIcon={<AddIcon />}
+              disabled={savedRecipes.length === 0}
+              sx={{ px: 4, py: 1.5 }}
             >
-              Add some recipes first to create a grocery list
-            </Typography>
-          )}
+              {savedRecipes.length === 0
+                ? 'No Recipes Available'
+                : 'Select Recipes'}
+            </PrimaryButton>
+            <PrimaryButton
+              variant='outlined'
+              size='large'
+              onClick={() => setAddItemDialogOpen(true)}
+              startIcon={<AddIcon />}
+              sx={{ px: 4, py: 1.5 }}
+            >
+              Add Grocery Item
+            </PrimaryButton>
+          </Box>
         </EmptyStateCard>
       )}
 
@@ -1302,6 +1318,7 @@ export function CreateGroceryList() {
                   <MenuItem value={MeasurementUnit.CAN}>Can</MenuItem>
                   <MenuItem value={MeasurementUnit.BOTTLE}>Bottle</MenuItem>
                   <MenuItem value={MeasurementUnit.STICK}>Stick</MenuItem>
+                  <MenuItem value={MeasurementUnit.ROLL}>Roll</MenuItem>
                   <MenuItem value={MeasurementUnit.PINT}>Pint</MenuItem>
                   <MenuItem value={MeasurementUnit.QUART}>Quart</MenuItem>
                   <MenuItem value={MeasurementUnit.GALLON}>Gallon</MenuItem>
@@ -1413,6 +1430,7 @@ export function CreateGroceryList() {
                   <MenuItem value={MeasurementUnit.CAN}>Can</MenuItem>
                   <MenuItem value={MeasurementUnit.BOTTLE}>Bottle</MenuItem>
                   <MenuItem value={MeasurementUnit.STICK}>Stick</MenuItem>
+                  <MenuItem value={MeasurementUnit.ROLL}>Roll</MenuItem>
                   <MenuItem value={MeasurementUnit.PINT}>Pint</MenuItem>
                   <MenuItem value={MeasurementUnit.QUART}>Quart</MenuItem>
                   <MenuItem value={MeasurementUnit.GALLON}>Gallon</MenuItem>

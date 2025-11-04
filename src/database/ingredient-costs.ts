@@ -426,14 +426,23 @@ class IngredientCostDatabase {
     const measurementLower = measurement.toLowerCase();
     const ingredientLower = ingredientName?.toLowerCase() || '';
 
-    // Special handling: "ct" or "count" for butter means "stick"
-    // 4 ct or 4 sticks = 1 lb, 1 stick = 113.5g = 1/2 cup
+    // Special handling: "ct", "count", "stick", or "whole" for butter means "stick"
+    // 4 ct or 4 sticks = 1 lb, 1 stick = 113.5g = 1/2 cup = 4 oz
     if (
-      (measurementLower === 'ct' || measurementLower === 'count') &&
-      ingredientLower.includes('butter')
+      ingredientLower.includes('butter') &&
+      (measurementLower === 'ct' ||
+        measurementLower === 'count' ||
+        measurementLower === 'stick' ||
+        measurementLower === 'whole')
     ) {
-      // 1 ct = 1 stick = 113.5g
+      // 1 ct = 1 stick = 1 whole = 113.5g = 4 oz
       return quantity * 113.5;
+    }
+
+    // Special handling: "roll" or "rolls" for count-based items (paper towels, toilet paper, etc.)
+    // For cost calculation, we treat each roll as 1 unit (1 gram for cost purposes)
+    if (measurementLower === 'roll' || measurementLower === 'rolls') {
+      return quantity; // 1 roll = 1 gram for cost calculation
     }
 
     // Note: Fraction handling is done by the recipe parser, which converts
