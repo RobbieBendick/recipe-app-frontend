@@ -182,7 +182,7 @@ const PriceDisplay = ({ groceryList }: { groceryList: Ingredient[] }) => {
           <Box>
             <Typography
               variant='body2'
-              color='text.secondary'
+              color='text.primary'
               sx={{ mb: 0.5, fontWeight: 500 }}
             >
               Total Estimated Cost
@@ -822,6 +822,7 @@ export function CreateGroceryList() {
                                 <RemoveIcon fontSize='small' />
                               </IconButton>
                               <TextField
+                                variant='outlined'
                                 size='small'
                                 value={currentMultiplier}
                                 onChange={e => {
@@ -928,13 +929,48 @@ export function CreateGroceryList() {
                 justifyContent: 'space-between',
                 mb: 3,
                 pb: 2,
-                borderBottom: theme =>
-                  `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                borderBottom: `1px solid var(--light-green-low-alpha)`,
+                gap: 2,
+                flexWrap: 'wrap',
               }}
             >
-              <Typography variant='h5' fontWeight={700} color='text.primary'>
-                Your Grocery List
-              </Typography>
+              <TextField
+                value={listName}
+                onChange={e => setListName(e.target.value)}
+                placeholder={
+                  editId ? 'Edit Grocery List Name' : 'Grocery List Name'
+                }
+                variant='outlined'
+                sx={{
+                  flex: 1,
+                  minWidth: { xs: '100%', sm: '300px' },
+                  '& .MuiOutlinedInput-root': {
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    color: 'text.primary',
+                    transition: 'all 0.2s ease',
+                    '& fieldset': {
+                      borderColor: 'var(--light-green-low-alpha)',
+                      borderWidth: '2px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'var(--light-green-medium-alpha)',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'var(--light-green)',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputBase-input': {
+                    cursor: 'text',
+                    padding: '14px 14px',
+                    '&::placeholder': {
+                      opacity: 0.6,
+                      color: 'text.secondary',
+                    },
+                  },
+                }}
+              />
               <Chip
                 label={`${groceryList.length} items`}
                 color='primary'
@@ -1017,7 +1053,7 @@ export function CreateGroceryList() {
                   },
                 }}
               >
-                Save Grocery List
+                {editId ? 'Save Changes' : 'Save Grocery List'}
               </PrimaryButton>
             </Box>
             <List sx={{ px: 0 }}>
@@ -1355,24 +1391,32 @@ export function CreateGroceryList() {
         maxWidth='sm'
         fullWidth
       >
-        <DialogTitle>Save Grocery List</DialogTitle>
+        <DialogTitle>
+          {editId ? 'Save Changes' : 'Save Grocery List'}
+        </DialogTitle>
         <DialogContent>
-          <Box sx={{ mt: 1 }}>
-            <TextField
-              fullWidth
-              label='List Name (Optional)'
-              value={listName}
-              onChange={e => setListName(e.target.value)}
-              placeholder='e.g., Weekly Shopping, Party Prep, Holiday Dinner'
-              variant='outlined'
-              helperText={`${groceryList.length} items will be saved. Leave blank to use current date & time.`}
-            />
-          </Box>
+          {editId ? (
+            <Typography variant='body1' sx={{ mt: 1 }}>
+              Are you sure you want to save your changes to this grocery list?
+            </Typography>
+          ) : (
+            <Box sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                label='List Name (Optional)'
+                value={listName}
+                onChange={e => setListName(e.target.value)}
+                placeholder='e.g., Weekly Shopping, Party Prep, Holiday Dinner'
+                variant='outlined'
+                helperText={`${groceryList.length} items will be saved. Leave blank to use current date & time.`}
+              />
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCancelSave}>Cancel</Button>
           <Button onClick={handleSaveList} variant='contained'>
-            Save List
+            {editId ? 'Save Changes' : 'Save List'}
           </Button>
         </DialogActions>
       </Dialog>

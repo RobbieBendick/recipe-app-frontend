@@ -14,6 +14,7 @@ import {
   Grid,
   alpha,
   keyframes,
+  Tooltip,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useGroceryList } from '../../contexts/grocery-list-context';
@@ -181,6 +182,7 @@ export function SavedGroceryLists() {
               return (
                 <Grid item xs={12} sm={6} md={4} key={list.id}>
                   <ModernCard
+                    onClick={() => handleEditList(list.id)}
                     sx={{
                       animation: `${scaleIn} 0.5s ease-out ${
                         index * 0.1
@@ -315,80 +317,82 @@ export function SavedGroceryLists() {
                         <List dense sx={{ maxHeight: 200, overflow: 'auto' }}>
                           {list.items.map((item, itemIndex) => {
                             return (
-                              <ListItem
-                                key={itemIndex}
-                                sx={{
-                                  py: 0.75,
-                                  px: 1,
-                                  mb: 0.5,
-                                  borderRadius: 1,
-                                  transition: 'all 0.2s ease',
-                                  '&:hover': {
-                                    backgroundColor: theme =>
-                                      alpha(theme.palette.primary.main, 0.05),
-                                  },
-                                }}
-                              >
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                  <Avatar
-                                    sx={{
-                                      width: 28,
-                                      height: 28,
-                                      background: theme =>
-                                        `linear-gradient(135deg, ${
-                                          theme.palette.primary.main
-                                        } 0%, ${
-                                          theme.palette.primary.dark ||
-                                          theme.palette.primary.main
-                                        } 100%)`,
-                                    }}
-                                  >
-                                    <RestaurantIcon fontSize='small' />
-                                  </Avatar>
-                                </ListItemIcon>
-                                <ListItemText
-                                  primary={
-                                    <Box
+                              <Tooltip title={item.title} enterDelay={1000}>
+                                <ListItem
+                                  key={itemIndex}
+                                  sx={{
+                                    py: 0.75,
+                                    px: 1,
+                                    mb: 0.5,
+                                    borderRadius: 1,
+                                    transition: 'all 0.2s ease',
+                                    '&:hover': {
+                                      backgroundColor: theme =>
+                                        alpha(theme.palette.primary.main, 0.05),
+                                    },
+                                  }}
+                                >
+                                  <ListItemIcon sx={{ minWidth: 32 }}>
+                                    <Avatar
                                       sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1,
+                                        width: 28,
+                                        height: 28,
+                                        background: theme =>
+                                          `linear-gradient(135deg, ${
+                                            theme.palette.primary.main
+                                          } 0%, ${
+                                            theme.palette.primary.dark ||
+                                            theme.palette.primary.main
+                                          } 100%)`,
                                       }}
                                     >
-                                      <Typography
-                                        variant='body2'
-                                        noWrap
-                                        sx={{ flex: 1, fontWeight: 500 }}
-                                        color='text.primary'
-                                      >
-                                        {item.title}
-                                      </Typography>
-                                      <Chip
-                                        label={`${
-                                          item.quantity
-                                        } ${pluralizeMeasurement(
-                                          item.quantity,
-                                          item.measurement
-                                        )}`}
+                                      <RestaurantIcon fontSize='small' />
+                                    </Avatar>
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={
+                                      <Box
                                         sx={{
-                                          backgroundColor: theme =>
-                                            alpha(
-                                              theme.palette.primary.main,
-                                              0.1
-                                            ),
-                                          color: 'primary.main',
-                                          fontWeight: 600,
-                                          border: theme =>
-                                            `1px solid ${alpha(
-                                              theme.palette.primary.main,
-                                              0.3
-                                            )}`,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 1,
                                         }}
-                                      />
-                                    </Box>
-                                  }
-                                />
-                              </ListItem>
+                                      >
+                                        <Typography
+                                          variant='body2'
+                                          noWrap
+                                          sx={{ flex: 1, fontWeight: 500 }}
+                                          color='text.primary'
+                                        >
+                                          {item.title}
+                                        </Typography>
+                                        <Chip
+                                          label={`${
+                                            item.quantity
+                                          } ${pluralizeMeasurement(
+                                            item.quantity,
+                                            item.measurement
+                                          )}`}
+                                          sx={{
+                                            backgroundColor: theme =>
+                                              alpha(
+                                                theme.palette.primary.main,
+                                                0.1
+                                              ),
+                                            color: 'primary.main',
+                                            fontWeight: 600,
+                                            border: theme =>
+                                              `1px solid ${alpha(
+                                                theme.palette.primary.main,
+                                                0.3
+                                              )}`,
+                                          }}
+                                        />
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              </Tooltip>
                             );
                           })}
                         </List>
