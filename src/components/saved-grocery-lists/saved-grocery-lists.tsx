@@ -394,6 +394,54 @@ export function SavedGroceryLists() {
                         </List>
                       </Box>
 
+                      {/* Contains Recipes */}
+                      {list.recipeTitles && list.recipeTitles.length > 0 && (
+                        <Box
+                          sx={{
+                            mb: 2,
+                            pt: 1.5,
+                            borderTop: theme =>
+                              `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                          }}
+                        >
+                          <Typography
+                            variant='subtitle2'
+                            gutterBottom
+                            fontWeight={600}
+                            color='text.primary'
+                            sx={{ mb: 1 }}
+                          >
+                            Contains Recipes ({list.recipeTitles.length})
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 0.75,
+                            }}
+                          >
+                            {list.recipeTitles.map((title, index) => (
+                              <Chip
+                                key={index}
+                                label={title}
+                                size='small'
+                                sx={{
+                                  backgroundColor: theme =>
+                                    alpha(theme.palette.secondary.main, 0.1),
+                                  color: 'secondary.main',
+                                  fontWeight: 500,
+                                  border: theme =>
+                                    `1px solid ${alpha(
+                                      theme.palette.secondary.main,
+                                      0.3
+                                    )}`,
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+
                       {/* Footer with Cost */}
                       <Box
                         sx={{

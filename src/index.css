@@ -3,6 +3,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --light-green: hsl(166, 100%, 70%);
+  --light-green-medium-alpha: hsl(166, 100%, 70%, 0.5);
   --light-green-low-alpha: hsl(166, 100%, 70%, 0.1);
   --slate: hsl(225, 20%, 61%);
   --light-slate: hsl(225, 31%, 74%);
@@ -37,12 +38,12 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--navy);
+  background: var(--light-green-low-alpha);
   border-radius: 100vw;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsla(225, 20%, 61%, 0.5);
+  background: var(--light-green-medium-alpha);
   border-radius: 100vw;
 }
 ::-webkit-scrollbar-thumb:hover {

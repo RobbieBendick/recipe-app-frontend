@@ -11,6 +11,7 @@ export interface GroceryList {
   id: string;
   name: string;
   items: Ingredient[];
+  recipeTitles?: string[]; // Optional: titles of recipes used to create this list
   createdAt: Date;
   lastUpdated: Date;
 }
@@ -55,6 +56,7 @@ export const GroceryListProvider: React.FC<GroceryListProviderProps> = ({
           id: string;
           name: string;
           items: Ingredient[];
+          recipeTitles?: string[];
           createdAt: string;
           lastUpdated: string;
         }>;

@@ -524,11 +524,15 @@ export function CreateGroceryList() {
     if (groceryList.length > 0) {
       const listNameToUse = listName.trim() || new Date().toLocaleString();
 
+      // Extract recipe titles from selected recipes
+      const recipeTitles = selectedRecipes.map(recipe => recipe.title);
+
       if (editId) {
         // Update existing list
         updateGroceryList(editId, {
           name: listNameToUse,
           items: groceryList,
+          recipeTitles: recipeTitles.length > 0 ? recipeTitles : undefined,
         });
         // Navigate back to saved lists
         navigate('/saved-grocery-lists');
@@ -537,6 +541,7 @@ export function CreateGroceryList() {
         addGroceryList({
           name: listNameToUse,
           items: groceryList,
+          recipeTitles: recipeTitles.length > 0 ? recipeTitles : undefined,
         });
         // Navigate to saved lists to see the newly created list
         navigate('/saved-grocery-lists');
