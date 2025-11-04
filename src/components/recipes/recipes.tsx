@@ -7,7 +7,9 @@ import {
   CardContent,
   Button,
   CardActionArea,
+  alpha,
 } from '@mui/material';
+import { styled, keyframes } from '@mui/material/styles';
 import { RecipeContext } from './recipe-context';
 import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +18,58 @@ import { ParseRecipeDialog } from './dialogs/parse-recipe-dialog';
 import { pluralizeMeasurement } from '../../helpers/helpers';
 import { ingredientCostDB } from '../../database/ingredient-costs';
 import { Ingredient, MeasurementUnit, Recipe } from '@/schemas/schemas';
+import AddIcon from '@mui/icons-material/Add';
+import LinkIcon from '@mui/icons-material/Link';
+
+// Animation keyframes
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled Components
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  textTransform: 'none',
+  fontWeight: 600,
+  padding: theme.spacing(0.75, 2),
+  fontSize: '0.875rem',
+  transition: 'all 0.3s ease',
+  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.15)}`,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+    borderColor: theme.palette.primary.main,
+  },
+  animation: `${fadeInUp} 0.5s ease-out`,
+}));
+
+const PrimaryModernButton = styled(ModernButton)(({ theme }) => ({
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
+  '&:hover': {
+    backgroundColor: theme.palette.primary.dark,
+  },
+}));
+
+const SecondaryModernButton = styled(ModernButton)(({ theme }) => ({
+  backgroundColor: theme.palette.secondary.main,
+  color: theme.palette.secondary.contrastText,
+  borderColor: alpha(theme.palette.secondary.main, 0.3),
+  boxShadow: `0 2px 8px ${alpha(theme.palette.secondary.main, 0.15)}`,
+  '&:hover': {
+    backgroundColor: theme.palette.secondary.dark,
+    borderColor: theme.palette.secondary.main,
+    boxShadow: `0 4px 16px ${alpha(theme.palette.secondary.main, 0.3)}`,
+  },
+}));
 
 export function Recipes() {
   const theme = useTheme();
@@ -49,33 +103,56 @@ export function Recipes() {
   return (
     <Box marginTop='20px'>
       <Box
-        display='flex'
-        justifyContent='center'
-        alignItems='center'
-        position='relative'
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: { xs: 2, sm: 0 },
+          mb: 3,
+        }}
       >
         <Typography
           fontWeight={600}
           color={theme.palette.text.primary}
           variant='h4'
+          sx={{
+            fontSize: { xs: '1.75rem', sm: '2rem' },
+          }}
         >
           Your Recipes
         </Typography>
-        <Box sx={{ position: 'absolute', right: 0, display: 'flex', gap: 1 }}>
-          <Button
-            variant='outlined'
-            color='secondary'
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 1.5 },
+            width: { xs: '100%', sm: 'auto' },
+            animation: `${fadeInUp} 0.5s ease-out 0.1s both`,
+          }}
+        >
+          <SecondaryModernButton
+            variant='contained'
+            startIcon={<LinkIcon />}
             onClick={() => setParseDialogOpen(true)}
+            fullWidth={false}
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+            }}
           >
             Get Recipe From URL
-          </Button>
-          <Button
-            variant='outlined'
-            color='primary'
+          </SecondaryModernButton>
+          <PrimaryModernButton
+            variant='contained'
+            startIcon={<AddIcon />}
             onClick={toggleAddRecipeDialog}
+            fullWidth={false}
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+            }}
           >
             Manually Add Recipe
-          </Button>
+          </PrimaryModernButton>
         </Box>
       </Box>
 

@@ -296,7 +296,8 @@ export function AddRecipeDialog() {
                               sx={{
                                 borderRadius: '16px',
                                 position: 'relative',
-                                border: '1px solid grey',
+                                border:
+                                  '1px solid var(--light-green-medium-alpha)',
                                 transition: 'all 0.2s ease-in-out',
                               }}
                             >
@@ -306,7 +307,8 @@ export function AddRecipeDialog() {
                                   display: 'flex',
                                   justifyContent: 'flex-end',
                                   alignItems: 'center',
-                                  borderBottom: '1px solid grey',
+                                  borderBottom:
+                                    '1px solid var(--light-green-medium-alpha)',
                                   px: 2,
                                   py: 0.5,
                                 }}

@@ -252,7 +252,7 @@ export const ParseRecipeDialog: React.FC<ParseRecipeDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth>
       <DialogTitle>
-        <Typography variant='h6'>Parse Recipe</Typography>
+        <Typography variant='h6'>Get Recipe From URL</Typography>
       </DialogTitle>
 
       <DialogContent>
@@ -280,7 +280,7 @@ export const ParseRecipeDialog: React.FC<ParseRecipeDialogProps> = ({
               startIcon={isUrlParsing ? <CircularProgress size={16} /> : null}
               sx={{ flex: 1 }}
             >
-              {isUrlParsing ? 'Fetching...' : 'Parse Recipe'}
+              {isUrlParsing ? 'Getting Recipe...' : 'Get Recipe'}
             </Button>
             <Button variant='outlined' onClick={handleClear}>
               Clear
