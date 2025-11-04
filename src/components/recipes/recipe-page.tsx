@@ -31,6 +31,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { SearchIngredientDialog } from './dialogs/search-ingredient-dialog';
@@ -60,6 +61,12 @@ const ModernButton = styled(Button)(({ theme }) => ({
     transform: 'translateY(-2px)',
     boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
   },
+  '&.MuiButton-outlined': {
+    borderWidth: '2px',
+    '&:hover': {
+      borderWidth: '2px',
+    },
+  },
 }));
 
 const SecondaryModernButton = styled(ModernButton)(({ theme }) => ({
@@ -72,11 +79,17 @@ const SecondaryModernButton = styled(ModernButton)(({ theme }) => ({
 
 const ErrorModernButton = styled(ModernButton)(({ theme }) => ({
   border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
+  borderWidth: '2px !important',
   color: theme.palette.error.main,
+  boxShadow: `0 2px 8px ${alpha(theme.palette.error.main, 0.15)}`,
+  transform: 'none !important',
   '&:hover': {
     backgroundColor: theme.palette.error.main,
     color: theme.palette.error.contrastText,
     borderColor: theme.palette.error.main,
+    borderWidth: '2px !important',
+    boxShadow: `0 4px 16px ${alpha(theme.palette.error.main, 0.3)}`,
+    transform: 'none !important',
   },
 }));
 
@@ -170,11 +183,101 @@ export function RecipePage() {
     setDeleteDialogOpen(false);
   };
 
+  const normalizeMeasurement = (
+    measurement: string | MeasurementUnit
+  ): MeasurementUnit => {
+    // Convert to string if it's already an enum value
+    const measurementStr = String(measurement || '')
+      .toLowerCase()
+      .trim();
+
+    if (!measurementStr) {
+      return MeasurementUnit.WHOLE;
+    }
+
+    // Map plural forms and variations to enum values
+    const measurementMap: Record<string, MeasurementUnit> = {
+      cup: MeasurementUnit.CUP,
+      cups: MeasurementUnit.CUP,
+      teaspoon: MeasurementUnit.TEASPOON,
+      teaspoons: MeasurementUnit.TEASPOON,
+      tsp: MeasurementUnit.TEASPOON,
+      tablespoon: MeasurementUnit.TABLESPOON,
+      tablespoons: MeasurementUnit.TABLESPOON,
+      tbsp: MeasurementUnit.TABLESPOON,
+      lb: MeasurementUnit.LB,
+      pound: MeasurementUnit.LB,
+      pounds: MeasurementUnit.LB,
+      oz: MeasurementUnit.OZ,
+      ounce: MeasurementUnit.OZ,
+      ounces: MeasurementUnit.OZ,
+      g: MeasurementUnit.GRAM,
+      gram: MeasurementUnit.GRAM,
+      grams: MeasurementUnit.GRAM,
+      kg: MeasurementUnit.KILOGRAM,
+      kilogram: MeasurementUnit.KILOGRAM,
+      kilograms: MeasurementUnit.KILOGRAM,
+      ml: MeasurementUnit.MILLILITER,
+      milliliter: MeasurementUnit.MILLILITER,
+      milliliters: MeasurementUnit.MILLILITER,
+      l: MeasurementUnit.LITER,
+      liter: MeasurementUnit.LITER,
+      liters: MeasurementUnit.LITER,
+      can: MeasurementUnit.CAN,
+      cans: MeasurementUnit.CAN,
+      bottle: MeasurementUnit.BOTTLE,
+      bottles: MeasurementUnit.BOTTLE,
+      whole: MeasurementUnit.WHOLE,
+      half: MeasurementUnit.HALF,
+      quarter: MeasurementUnit.QUARTER,
+      pint: MeasurementUnit.PINT,
+      pints: MeasurementUnit.PINT,
+      quart: MeasurementUnit.QUART,
+      quarts: MeasurementUnit.QUART,
+      gallon: MeasurementUnit.GALLON,
+      gallons: MeasurementUnit.GALLON,
+      stick: MeasurementUnit.STICK,
+      sticks: MeasurementUnit.STICK,
+      roll: MeasurementUnit.ROLL,
+      rolls: MeasurementUnit.ROLL,
+    };
+
+    // Check if it's already a valid enum value (check both the string and enum values)
+    const enumValues = Object.values(MeasurementUnit) as string[];
+    if (enumValues.includes(measurementStr)) {
+      return measurementStr as MeasurementUnit;
+    }
+
+    // Try to find a match in the map
+    if (measurementMap[measurementStr]) {
+      return measurementMap[measurementStr];
+    }
+
+    // Log for debugging if we can't find a match
+    console.warn(
+      `Could not normalize measurement: "${measurement}" (normalized: "${measurementStr}"). Defaulting to WHOLE.`
+    );
+
+    // Default to WHOLE if no match found
+    return MeasurementUnit.WHOLE;
+  };
+
   const handleEditClick = () => {
     setIsEditMode(true);
     setEditTitle(recipe.title);
     setEditDescription(recipe.description || '');
-    setEditIngredients([...recipe.ingredients]);
+    // Normalize measurements to ensure they match enum values
+    const normalizedIngredients = recipe.ingredients.map(ing => {
+      const normalized = normalizeMeasurement(ing.measurement);
+      console.log(
+        `Normalizing: "${ing.measurement}" -> "${normalized}" for ingredient: ${ing.title}`
+      );
+      return {
+        ...ing,
+        measurement: normalized,
+      };
+    });
+    setEditIngredients(normalizedIngredients);
     setEditImage(recipe.image || '');
   };
 
@@ -355,7 +458,7 @@ export function RecipePage() {
           flexDirection: { xs: 'column', sm: 'row' },
           alignItems: { xs: 'flex-start', sm: 'center' },
           justifyContent: 'space-between',
-          gap: { xs: 2, sm: 0 },
+          gap: { xs: 2, sm: 3 },
           marginBottom: '30px',
         }}
       >
@@ -371,6 +474,15 @@ export function RecipePage() {
                 '& .MuiOutlinedInput-root': {
                   fontSize: { xs: '1.5rem', sm: '2rem' },
                   fontWeight: 600,
+                  '& fieldset': {
+                    borderColor: 'var(--light-green-medium-alpha)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'var(--light-green-medium-alpha)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'var(--light-green)',
+                  },
                 },
               }}
             />
@@ -394,6 +506,7 @@ export function RecipePage() {
             flexDirection: { xs: 'column', sm: 'row' },
             gap: { xs: 1.5, sm: 2 },
             width: { xs: '100%', sm: 'auto' },
+            alignItems: 'flex-start',
           }}
         >
           {isEditMode ? (
@@ -424,7 +537,7 @@ export function RecipePage() {
           ) : (
             <>
               <SecondaryModernButton
-                variant='outlined'
+                variant='contained'
                 startIcon={<EditIcon />}
                 onClick={handleEditClick}
                 fullWidth={false}
@@ -453,7 +566,14 @@ export function RecipePage() {
       <Grid container spacing={4}>
         {/* Recipe Info Card */}
         <Grid item xs={12} md={8}>
-          <Card elevation={3} sx={{ borderRadius: '16px', mb: 3 }}>
+          <Card
+            elevation={3}
+            sx={{
+              borderRadius: '16px',
+              mb: 3,
+              border: '1px solid var(--light-green-medium-alpha)',
+            }}
+          >
             <CardContent sx={{ p: 4 }}>
               <Box sx={{ mb: 3 }}>
                 <Typography
@@ -473,15 +593,41 @@ export function RecipePage() {
                     onChange={e => setEditDescription(e.target.value)}
                     placeholder='Enter recipe description...'
                     variant='outlined'
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: 'var(--light-green-medium-alpha)',
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'var(--light-green-medium-alpha)',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: 'var(--light-green)',
+                        },
+                      },
+                    }}
                   />
+                ) : recipe.description ? (
+                  <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
+                    {recipe.description}
+                  </Typography>
                 ) : (
-                  recipe.description && (
-                    <Typography variant='body1' sx={{ fontStyle: 'italic' }}>
-                      {recipe.description}
-                    </Typography>
-                  )
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                    sx={{ fontStyle: 'italic' }}
+                  >
+                    No description provided
+                  </Typography>
                 )}
               </Box>
+
+              <Divider
+                sx={{
+                  my: 3,
+                  borderColor: theme => alpha(theme.palette.text.primary, 0.4),
+                }}
+              />
 
               {/* Image Upload Section */}
               <Box sx={{ mb: 3 }}>
@@ -533,7 +679,7 @@ export function RecipePage() {
                       )}
                     </Box>
 
-                    {editImage && (
+                    {editImage ? (
                       <Avatar
                         src={editImage}
                         sx={{
@@ -545,26 +691,45 @@ export function RecipePage() {
                         }}
                         variant='rounded'
                       />
+                    ) : (
+                      <Typography
+                        variant='body2'
+                        color='text.secondary'
+                        sx={{ fontStyle: 'italic', mt: 1 }}
+                      >
+                        No image provided
+                      </Typography>
                     )}
                   </Box>
+                ) : recipe.image ? (
+                  <Avatar
+                    src={recipe.image}
+                    sx={{
+                      width: 200,
+                      height: 150,
+                      borderRadius: 2,
+                      border: '2px solid',
+                      borderColor: 'divider',
+                    }}
+                    variant='rounded'
+                  />
                 ) : (
-                  recipe.image && (
-                    <Avatar
-                      src={recipe.image}
-                      sx={{
-                        width: 200,
-                        height: 150,
-                        borderRadius: 2,
-                        border: '2px solid',
-                        borderColor: 'divider',
-                      }}
-                      variant='rounded'
-                    />
-                  )
+                  <Typography
+                    variant='body2'
+                    color='text.secondary'
+                    sx={{ fontStyle: 'italic' }}
+                  >
+                    No image provided
+                  </Typography>
                 )}
               </Box>
 
-              <Divider sx={{ my: 3 }} />
+              <Divider
+                sx={{
+                  my: 3,
+                  borderColor: theme => alpha(theme.palette.text.primary, 0.4),
+                }}
+              />
 
               <Box
                 sx={{
@@ -599,7 +764,7 @@ export function RecipePage() {
                           sx={{
                             borderRadius: '16px',
                             position: 'relative',
-                            border: '1px solid grey',
+                            border: '1px solid var(--light-green-medium-alpha)',
                             transition: 'all 0.2s ease-in-out',
                           }}
                         >
@@ -609,7 +774,8 @@ export function RecipePage() {
                               display: 'flex',
                               justifyContent: 'flex-end',
                               alignItems: 'center',
-                              borderBottom: '1px solid grey',
+                              borderBottom:
+                                '1px solid var(--light-green-medium-alpha)',
                               px: 2,
                               py: 0.5,
                             }}
@@ -655,6 +821,17 @@ export function RecipePage() {
                                   sx={{
                                     '& .MuiOutlinedInput-root': {
                                       borderRadius: '8px',
+                                      '& fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&:hover fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&.Mui-focused fieldset': {
+                                        borderColor: 'var(--light-green)',
+                                      },
                                     },
                                   }}
                                 />
@@ -683,6 +860,17 @@ export function RecipePage() {
                                   sx={{
                                     '& .MuiOutlinedInput-root': {
                                       borderRadius: '8px',
+                                      '& fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&:hover fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&.Mui-focused fieldset': {
+                                        borderColor: 'var(--light-green)',
+                                      },
                                     },
                                   }}
                                 />
@@ -704,6 +892,17 @@ export function RecipePage() {
                                   sx={{
                                     '& .MuiOutlinedInput-root': {
                                       borderRadius: '8px',
+                                      '& fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&:hover fieldset': {
+                                        borderColor:
+                                          'var(--light-green-medium-alpha)',
+                                      },
+                                      '&.Mui-focused fieldset': {
+                                        borderColor: 'var(--light-green)',
+                                      },
                                     },
                                   }}
                                 >
@@ -723,8 +922,7 @@ export function RecipePage() {
                             display: 'flex',
                             alignItems: 'center',
                             p: 2,
-                            border: '1px solid',
-                            borderColor: 'divider',
+                            border: '1px solid var(--light-green-medium-alpha)',
                             borderRadius: '8px',
                             backgroundColor: 'background.paper',
                             '&:hover': {
@@ -758,7 +956,13 @@ export function RecipePage() {
 
         {/* Recipe Stats Card */}
         <Grid item xs={12} md={4}>
-          <Card elevation={3} sx={{ borderRadius: '16px' }}>
+          <Card
+            elevation={3}
+            sx={{
+              borderRadius: '16px',
+              border: '1px solid var(--light-green-medium-alpha)',
+            }}
+          >
             <CardContent sx={{ p: 3 }}>
               <Typography variant='h6' gutterBottom color='text.primary'>
                 Recipe Info
@@ -814,7 +1018,12 @@ export function RecipePage() {
                 )}
               </Box>
 
-              <Divider sx={{ my: 2 }} />
+              <Divider
+                sx={{
+                  my: 2,
+                  borderColor: theme => alpha(theme.palette.text.primary, 0.4),
+                }}
+              />
 
               <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
                 Created
@@ -853,7 +1062,13 @@ export function RecipePage() {
       {/* Price Breakdown Section */}
       {costData && costData.breakdown.length > 0 && (
         <Box sx={{ mt: 4 }}>
-          <Card elevation={3} sx={{ borderRadius: '16px' }}>
+          <Card
+            elevation={3}
+            sx={{
+              borderRadius: '16px',
+              border: '1px solid var(--light-green-medium-alpha)',
+            }}
+          >
             <CardContent sx={{ p: 4 }}>
               <Typography
                 variant='h6'
@@ -957,7 +1172,7 @@ export function RecipePage() {
                                   },
                                 }}
                               >
-                                <EditIcon sx={{ fontSize: '16px' }} />
+                                <SearchIcon sx={{ fontSize: '16px' }} />
                               </IconButton>
                             </Box>
                           </Box>

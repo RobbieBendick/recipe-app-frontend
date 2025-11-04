@@ -26,7 +26,7 @@ import {
   keyframes,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RecipeContext } from '../recipes/recipe-context';
 import { useGroceryList } from '../../contexts/grocery-list-context';
@@ -319,6 +319,12 @@ export function CreateGroceryList() {
     quantity: number;
     measurement: string;
   } | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [exitEditDialogOpen, setExitEditDialogOpen] = useState(false);
+  const [originalListState, setOriginalListState] = useState<{
+    listName: string;
+    groceryList: Ingredient[];
+  } | null>(null);
 
   // Persist state to localStorage whenever it changes
   useEffect(() => {
@@ -518,6 +524,54 @@ export function CreateGroceryList() {
   const handleCancelAdd = () => {
     setNewItem({ title: '', quantity: 1, measurement: MeasurementUnit.CUP });
     setAddItemDialogOpen(false);
+  };
+
+  // Check for unsaved changes when in edit mode
+  const hasUnsavedChanges = useCallback(() => {
+    if (!editId || !isEditMode || !originalListState) return false;
+
+    return (
+      listName !== originalListState.listName ||
+      JSON.stringify(groceryList) !==
+        JSON.stringify(originalListState.groceryList)
+    );
+  }, [editId, isEditMode, originalListState, listName, groceryList]);
+
+  // Handle exiting edit mode with confirmation
+  const handleExitEditMode = useCallback(() => {
+    if (hasUnsavedChanges()) {
+      setExitEditDialogOpen(true);
+    } else {
+      // No changes, exit edit mode directly
+      setIsEditMode(false);
+      setOriginalListState(null);
+    }
+  }, [hasUnsavedChanges]);
+
+  // Handle exit edit confirmation - discard changes
+  const handleExitEditConfirm = () => {
+    setExitEditDialogOpen(false);
+    // Restore original state
+    if (originalListState) {
+      setListName(originalListState.listName);
+      setGroceryList(originalListState.groceryList);
+    }
+    setIsEditMode(false);
+    setOriginalListState(null);
+  };
+
+  // Handle exit edit with save
+  const handleExitEditSave = () => {
+    setExitEditDialogOpen(false);
+    // Save the changes
+    handleSaveList();
+    setIsEditMode(false);
+    setOriginalListState(null);
+  };
+
+  // Handle exit edit cancel
+  const handleExitEditCancel = () => {
+    setExitEditDialogOpen(false);
   };
 
   const handleSaveList = () => {
@@ -902,22 +956,6 @@ export function CreateGroceryList() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: '1200px', mx: 'auto' }}>
-      <Box sx={{ mb: 4, animation: `${fadeInUp} 0.5s ease-out` }}>
-        <Typography
-          variant='h3'
-          gutterBottom
-          color='text.primary'
-          fontWeight={700}
-          sx={{ mb: 1 }}
-        >
-          Create Grocery List
-        </Typography>
-        <Typography variant='body1' color='text.secondary'>
-          Select recipes to generate a combined grocery list with all
-          ingredients.
-        </Typography>
-      </Box>
-
       {/* Grocery List Display */}
       {groceryList.length > 0 ? (
         <ModernCard sx={{ mb: 3 }}>
@@ -934,43 +972,108 @@ export function CreateGroceryList() {
                 flexWrap: 'wrap',
               }}
             >
-              <TextField
-                value={listName}
-                onChange={e => setListName(e.target.value)}
-                placeholder={
-                  editId ? 'Edit Grocery List Name' : 'Grocery List Name'
-                }
-                variant='outlined'
-                sx={{
-                  flex: 1,
-                  minWidth: { xs: '100%', sm: '300px' },
-                  '& .MuiOutlinedInput-root': {
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                    color: 'text.primary',
-                    transition: 'all 0.2s ease',
-                    '& fieldset': {
-                      borderColor: 'var(--light-green-low-alpha)',
-                      borderWidth: '2px',
+              {isEditMode || !editId ? (
+                <TextField
+                  value={listName}
+                  onChange={e => setListName(e.target.value)}
+                  placeholder={
+                    editId ? 'Edit Grocery List Name' : 'Grocery List Name'
+                  }
+                  variant='outlined'
+                  sx={{
+                    flex: 1,
+                    minWidth: { xs: '100%', sm: '300px' },
+                    '& .MuiOutlinedInput-root': {
+                      fontSize: '1.5rem',
+                      fontWeight: 700,
+                      color: 'text.primary',
+                      transition: 'all 0.2s ease',
+                      '& fieldset': {
+                        borderColor: 'var(--light-green-low-alpha)',
+                        borderWidth: '2px',
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'var(--light-green-medium-alpha)',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: 'var(--light-green)',
+                        borderWidth: '2px',
+                      },
                     },
-                    '&:hover fieldset': {
-                      borderColor: 'var(--light-green-medium-alpha)',
+                    '& .MuiInputBase-input': {
+                      cursor: 'text',
+                      padding: '14px 14px',
+                      '&::placeholder': {
+                        opacity: 0.6,
+                        color: 'text.secondary',
+                      },
                     },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--light-green)',
-                      borderWidth: '2px',
-                    },
-                  },
-                  '& .MuiInputBase-input': {
-                    cursor: 'text',
-                    padding: '14px 14px',
-                    '&::placeholder': {
-                      opacity: 0.6,
-                      color: 'text.secondary',
-                    },
-                  },
-                }}
-              />
+                  }}
+                />
+              ) : (
+                <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: '300px' } }}>
+                  <Typography
+                    variant='h5'
+                    fontWeight={700}
+                    color='text.primary'
+                    sx={{ fontSize: '1.5rem' }}
+                  >
+                    {listName}
+                  </Typography>
+                </Box>
+              )}
+              {editId && !isEditMode && (
+                <Button
+                  variant='contained'
+                  startIcon={<EditIcon />}
+                  onClick={() => {
+                    // Store original state when entering edit mode
+                    setOriginalListState({
+                      listName,
+                      groceryList: [...groceryList],
+                    });
+                    setIsEditMode(true);
+                  }}
+                  sx={{
+                    borderRadius: theme => theme.shape.borderRadius * 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    padding: theme => theme.spacing(1, 2.5),
+                  }}
+                >
+                  Edit
+                </Button>
+              )}
+              {editId && isEditMode && (
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant='contained'
+                    color='success'
+                    onClick={() => setSaveListDialogOpen(true)}
+                    disabled={groceryList.length === 0}
+                    sx={{
+                      borderRadius: theme => theme.shape.borderRadius * 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      padding: theme => theme.spacing(1, 2.5),
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                  <Button
+                    variant='outlined'
+                    onClick={handleExitEditMode}
+                    sx={{
+                      borderRadius: theme => theme.shape.borderRadius * 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      padding: theme => theme.spacing(1, 2.5),
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Box>
+              )}
               <Chip
                 label={`${groceryList.length} items`}
                 color='primary'
@@ -982,80 +1085,84 @@ export function CreateGroceryList() {
             </Box>
 
             {/* Add Buttons */}
-            <Box
-              sx={{
-                mb: 3,
-                display: 'flex',
-                gap: 1.5,
-                flexWrap: 'wrap',
-                justifyContent: 'space-between',
-              }}
-            >
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                <PrimaryButton
-                  variant='contained'
-                  startIcon={<AddIcon />}
-                  onClick={() => toggleDrawer(true)}
-                  size='medium'
-                >
-                  Add More Recipes
-                </PrimaryButton>
-                <PrimaryButton
-                  variant='contained'
-                  startIcon={<AddIcon />}
-                  onClick={() => setAddItemDialogOpen(true)}
-                  size='medium'
-                  color='secondary'
-                >
-                  Add Grocery Item
-                </PrimaryButton>
-              </Box>
-              <Button
-                variant='outlined'
-                size='medium'
-                onClick={handleClearList}
+            {(isEditMode || !editId) && (
+              <Box
                 sx={{
-                  minWidth: 'auto',
-                  px: 3,
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  borderColor: theme => alpha(theme.palette.error.main, 0.5),
-                  color: 'error.main',
-                  '&:hover': {
-                    borderColor: 'error.main',
-                    backgroundColor: theme =>
-                      alpha(theme.palette.error.main, 0.1),
-                  },
+                  mb: 3,
+                  display: 'flex',
+                  gap: 1.5,
+                  flexWrap: 'wrap',
+                  justifyContent: 'space-between',
                 }}
               >
-                Clear
-              </Button>
-            </Box>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <PrimaryButton
+                    variant='contained'
+                    startIcon={<AddIcon />}
+                    onClick={() => toggleDrawer(true)}
+                    size='medium'
+                  >
+                    Add More Recipes
+                  </PrimaryButton>
+                  <PrimaryButton
+                    variant='contained'
+                    startIcon={<AddIcon />}
+                    onClick={() => setAddItemDialogOpen(true)}
+                    size='medium'
+                    color='secondary'
+                  >
+                    Add Grocery Item
+                  </PrimaryButton>
+                </Box>
+                <Button
+                  variant='outlined'
+                  size='medium'
+                  onClick={handleClearList}
+                  sx={{
+                    minWidth: 'auto',
+                    px: 3,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderColor: theme => alpha(theme.palette.error.main, 0.5),
+                    color: 'error.main',
+                    '&:hover': {
+                      borderColor: 'error.main',
+                      backgroundColor: theme =>
+                        alpha(theme.palette.error.main, 0.1),
+                    },
+                  }}
+                >
+                  Clear
+                </Button>
+              </Box>
+            )}
 
             {/* Total Price Display */}
             <PriceDisplay groceryList={groceryList} />
 
             {/* Save Button */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
-              <PrimaryButton
-                variant='contained'
-                onClick={() => setSaveListDialogOpen(true)}
-                size='large'
-                color='success'
-                disabled={groceryList.length === 0}
-                sx={{
-                  boxShadow: theme =>
-                    `0 2px 8px ${alpha(theme.palette.success.main, 0.3)}`,
-                  '&:hover': {
+            {!editId && (
+              <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                <PrimaryButton
+                  variant='contained'
+                  onClick={() => setSaveListDialogOpen(true)}
+                  size='large'
+                  color='success'
+                  disabled={groceryList.length === 0}
+                  sx={{
                     boxShadow: theme =>
-                      `0 4px 16px ${alpha(theme.palette.success.main, 0.4)}`,
-                  },
-                }}
-              >
-                {editId ? 'Save Changes' : 'Save Grocery List'}
-              </PrimaryButton>
-            </Box>
+                      `0 2px 8px ${alpha(theme.palette.success.main, 0.3)}`,
+                    '&:hover': {
+                      boxShadow: theme =>
+                        `0 4px 16px ${alpha(theme.palette.success.main, 0.4)}`,
+                    },
+                  }}
+                >
+                  Save Grocery List
+                </PrimaryButton>
+              </Box>
+            )}
             <List sx={{ px: 0 }}>
               {groceryList.map((ingredient, index) => (
                 <ListItem
@@ -1153,77 +1260,82 @@ export function CreateGroceryList() {
                         </Box>
                       }
                     />
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <IconButton
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleSearchIngredient(ingredient);
-                        }}
-                        size='small'
-                        sx={{
-                          color: 'primary.main',
-                          transition: 'all 0.3s ease',
-                          border: theme =>
-                            `1px solid ${alpha(
-                              theme.palette.primary.main,
-                              0.3
-                            )}`,
-                          '&:hover': {
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                            transform: 'scale(1.1)',
-                          },
-                        }}
-                        title='Search Kroger Prices'
-                      >
-                        <SearchIcon fontSize='small' />
-                      </IconButton>
-                      <IconButton
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleEditItem(index);
-                        }}
-                        size='small'
-                        sx={{
-                          color: 'primary.main',
-                          transition: 'all 0.3s ease',
-                          border: theme =>
-                            `1px solid ${alpha(
-                              theme.palette.primary.main,
-                              0.3
-                            )}`,
-                          '&:hover': {
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                            transform: 'scale(1.1)',
-                          },
-                        }}
-                        title='Edit Quantity'
-                      >
-                        <EditIcon fontSize='small' />
-                      </IconButton>
-                      <IconButton
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDeleteItem(index);
-                        }}
-                        size='small'
-                        sx={{
-                          color: 'error.main',
-                          transition: 'all 0.3s ease',
-                          border: theme =>
-                            `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
-                          '&:hover': {
-                            backgroundColor: 'error.main',
-                            color: 'white',
-                            transform: 'scale(1.1)',
-                          },
-                        }}
-                        title='Delete Item'
-                      >
-                        <DeleteIcon fontSize='small' />
-                      </IconButton>
-                    </Box>
+                    {(isEditMode || !editId) && (
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <IconButton
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleSearchIngredient(ingredient);
+                          }}
+                          size='small'
+                          sx={{
+                            color: 'primary.main',
+                            transition: 'all 0.3s ease',
+                            border: theme =>
+                              `1px solid ${alpha(
+                                theme.palette.primary.main,
+                                0.3
+                              )}`,
+                            '&:hover': {
+                              backgroundColor: 'primary.main',
+                              color: 'white',
+                              transform: 'scale(1.1)',
+                            },
+                          }}
+                          title='Search Kroger Prices'
+                        >
+                          <SearchIcon fontSize='small' />
+                        </IconButton>
+                        <IconButton
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleEditItem(index);
+                          }}
+                          size='small'
+                          sx={{
+                            color: 'primary.main',
+                            transition: 'all 0.3s ease',
+                            border: theme =>
+                              `1px solid ${alpha(
+                                theme.palette.primary.main,
+                                0.3
+                              )}`,
+                            '&:hover': {
+                              backgroundColor: 'primary.main',
+                              color: 'white',
+                              transform: 'scale(1.1)',
+                            },
+                          }}
+                          title='Edit Quantity'
+                        >
+                          <EditIcon fontSize='small' />
+                        </IconButton>
+                        <IconButton
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDeleteItem(index);
+                          }}
+                          size='small'
+                          sx={{
+                            color: 'error.main',
+                            transition: 'all 0.3s ease',
+                            border: theme =>
+                              `1px solid ${alpha(
+                                theme.palette.error.main,
+                                0.3
+                              )}`,
+                            '&:hover': {
+                              backgroundColor: 'error.main',
+                              color: 'white',
+                              transform: 'scale(1.1)',
+                            },
+                          }}
+                          title='Delete Item'
+                        >
+                          <DeleteIcon fontSize='small' />
+                        </IconButton>
+                      </Box>
+                    )}
                   </ModernListItem>
                 </ListItem>
               ))}
@@ -1248,11 +1360,14 @@ export function CreateGroceryList() {
             <RestaurantIcon sx={{ fontSize: 64, color: 'primary.main' }} />
           </Box>
           <Typography variant='h5' gutterBottom fontWeight={700}>
-            Start Building Your Grocery List
+            {editId && isEditMode
+              ? 'Start Adding Items'
+              : 'Start Building Your Grocery List'}
           </Typography>
           <Typography variant='body1' color='text.secondary' sx={{ mb: 4 }}>
-            Add items manually or select from your saved recipes to create a
-            comprehensive shopping list.
+            {editId && isEditMode
+              ? 'Add items manually or select from your saved recipes to build your shopping list.'
+              : 'Add items manually or select from your saved recipes to create a comprehensive shopping list.'}
           </Typography>
           <Box
             sx={{
@@ -1516,6 +1631,39 @@ export function CreateGroceryList() {
           onSuccess={handleIngredientSearchSuccess}
         />
       )}
+
+      {/* Exit Edit Mode Confirmation Dialog */}
+      <Dialog
+        open={exitEditDialogOpen}
+        onClose={handleExitEditCancel}
+        aria-labelledby='exit-edit-dialog-title'
+      >
+        <DialogTitle id='exit-edit-dialog-title'>Unsaved Changes</DialogTitle>
+        <DialogContent>
+          <Typography>
+            You have unsaved changes. What would you like to do?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleExitEditCancel} variant='outlined'>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleExitEditConfirm}
+            variant='outlined'
+            color='error'
+          >
+            Discard Changes
+          </Button>
+          <Button
+            onClick={handleExitEditSave}
+            variant='contained'
+            color='primary'
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
