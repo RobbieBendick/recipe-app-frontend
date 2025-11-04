@@ -15,7 +15,10 @@ import {
   IconButton,
   MenuItem,
   Avatar,
+  alpha,
+  keyframes,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { RecipeContext } from './recipe-context';
 import { useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -31,6 +34,61 @@ import AddIcon from '@mui/icons-material/Add';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { SearchIngredientDialog } from './dialogs/search-ingredient-dialog';
+
+// Animation keyframes
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+// Styled Components
+const ModernButton = styled(Button)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius * 2,
+  textTransform: 'none',
+  fontWeight: 600,
+  padding: theme.spacing(1, 2.5),
+  transition: 'all 0.3s ease',
+  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.15)}`,
+  animation: `${fadeInUp} 0.5s ease-out`,
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+  },
+}));
+
+const SecondaryModernButton = styled(ModernButton)(({ theme }) => ({
+  border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+  '&:hover': {
+    borderColor: theme.palette.primary.main,
+    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+  },
+}));
+
+const ErrorModernButton = styled(ModernButton)(({ theme }) => ({
+  border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`,
+  color: theme.palette.error.main,
+  '&:hover': {
+    backgroundColor: theme.palette.error.main,
+    color: theme.palette.error.contrastText,
+    borderColor: theme.palette.error.main,
+  },
+}));
+
+const SuccessModernButton = styled(ModernButton)(({ theme }) => ({
+  backgroundColor: theme.palette.success.main,
+  color: theme.palette.success.contrastText,
+  boxShadow: `0 2px 8px ${alpha(theme.palette.success.main, 0.3)}`,
+  '&:hover': {
+    backgroundColor: theme.palette.success.dark,
+    boxShadow: `0 4px 16px ${alpha(theme.palette.success.main, 0.4)}`,
+  },
+}));
 
 export function RecipePage() {
   const navigate = useNavigate();
@@ -292,74 +350,101 @@ export function RecipePage() {
 
       {/* Title and action buttons row */}
       <Box
-        display='flex'
-        alignItems='center'
-        justifyContent='space-between'
-        marginBottom='30px'
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          justifyContent: 'space-between',
+          gap: { xs: 2, sm: 0 },
+          marginBottom: '30px',
+        }}
       >
-        <Box sx={{ flex: 1 }}>
+        <Box sx={{ flex: 1, width: { xs: '100%', sm: 'auto' } }}>
           {isEditMode ? (
             <TextField
               value={editTitle}
               onChange={e => setEditTitle(e.target.value)}
               variant='outlined'
               size='medium'
+              fullWidth
               sx={{
                 '& .MuiOutlinedInput-root': {
-                  fontSize: '2rem',
+                  fontSize: { xs: '1.5rem', sm: '2rem' },
                   fontWeight: 600,
                 },
               }}
             />
           ) : (
-            <Typography variant='h4' fontWeight={600} color='text.primary'>
+            <Typography
+              variant='h4'
+              fontWeight={600}
+              color='text.primary'
+              sx={{
+                fontSize: { xs: '1.75rem', sm: '2.125rem' },
+              }}
+            >
               {recipe.title}
             </Typography>
           )}
         </Box>
 
-        <Box display='flex' gap={2}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1.5, sm: 2 },
+            width: { xs: '100%', sm: 'auto' },
+          }}
+        >
           {isEditMode ? (
             <>
-              <Button
+              <SuccessModernButton
                 variant='contained'
-                color='success'
                 startIcon={<SaveIcon />}
                 onClick={handleSaveEdit}
+                fullWidth={false}
+                sx={{
+                  width: { xs: '100%', sm: 'auto' },
+                }}
               >
                 Save
-              </Button>
-              <Button
+              </SuccessModernButton>
+              <SecondaryModernButton
                 variant='outlined'
                 startIcon={<CancelIcon />}
                 onClick={handleExitEditMode}
+                fullWidth={false}
+                sx={{
+                  width: { xs: '100%', sm: 'auto' },
+                }}
               >
                 Cancel
-              </Button>
+              </SecondaryModernButton>
             </>
           ) : (
             <>
-              <Button
+              <SecondaryModernButton
                 variant='outlined'
                 startIcon={<EditIcon />}
                 onClick={handleEditClick}
+                fullWidth={false}
+                sx={{
+                  width: { xs: '100%', sm: 'auto' },
+                }}
               >
                 Edit
-              </Button>
-              <Button
+              </SecondaryModernButton>
+              <ErrorModernButton
                 variant='outlined'
-                color='error'
                 startIcon={<DeleteIcon />}
                 onClick={handleDeleteClick}
+                fullWidth={false}
                 sx={{
-                  '&:hover': {
-                    backgroundColor: 'error.light',
-                    color: 'white',
-                  },
+                  width: { xs: '100%', sm: 'auto' },
                 }}
               >
                 Delete Recipe
-              </Button>
+              </ErrorModernButton>
             </>
           )}
         </Box>

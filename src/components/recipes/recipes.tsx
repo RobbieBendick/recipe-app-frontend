@@ -211,8 +211,11 @@ export function Recipes() {
                       zIndex: 2,
                       color: recipe.image ? 'white' : 'inherit',
                       background: recipe.image
-                        ? 'linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.8), rgba(0,0,0,1))'
+                        ? 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.65), rgba(0,0,0,0.75))'
                         : 'transparent',
+                      textShadow: recipe.image
+                        ? '0 2px 8px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.7)'
+                        : 'none',
                     }}
                   >
                     {/* Recipe Header */}
@@ -222,7 +225,7 @@ export function Recipes() {
                         gutterBottom
                         sx={{
                           fontWeight: 600,
-                          color: 'text.primary',
+                          color: recipe.image ? 'white' : 'text.primary',
                           lineHeight: 1.2,
                         }}
                       >
@@ -232,8 +235,10 @@ export function Recipes() {
                       {recipe.description && (
                         <Typography
                           variant='body2'
-                          color='text.secondary'
                           sx={{
+                            color: recipe.image
+                              ? 'rgba(255, 255, 255, 0.8)'
+                              : 'text.secondary',
                             fontStyle: 'italic',
                             lineHeight: 1.4,
                           }}
@@ -248,7 +253,7 @@ export function Recipes() {
                         gutterBottom
                         sx={{
                           fontWeight: 600,
-                          color: 'text.primary',
+                          color: recipe.image ? 'white' : 'text.primary',
                         }}
                       >
                         Ingredients:
@@ -273,7 +278,9 @@ export function Recipes() {
                               variant='body2'
                               sx={{
                                 ml: 1,
-                                color: 'text.secondary',
+                                color: recipe.image
+                                  ? 'rgba(255, 255, 255, 0.7)'
+                                  : 'text.secondary',
                                 fontSize: '0.875rem',
                               }}
                             >
@@ -285,7 +292,9 @@ export function Recipes() {
                               <span
                                 style={{
                                   fontWeight: 500,
-                                  color: theme.palette.text.primary,
+                                  color: recipe.image
+                                    ? 'white'
+                                    : theme.palette.text.primary,
                                 }}
                               >
                                 {ingredient.title}
@@ -315,7 +324,14 @@ export function Recipes() {
                           gap: 0.5,
                         }}
                       >
-                        <Typography variant='caption' color='text.secondary'>
+                        <Typography
+                          variant='caption'
+                          sx={{
+                            color: recipe.image
+                              ? 'rgba(255, 255, 255, 0.7)'
+                              : 'text.secondary',
+                          }}
+                        >
                           {recipe.ingredients.length} ingredient
                           {recipe.ingredients.length !== 1 ? 's' : ''}
                         </Typography>
@@ -324,10 +340,13 @@ export function Recipes() {
                             variant='body2'
                             sx={{
                               fontWeight: 600,
-                              color:
-                                costData.totalCost > 0
-                                  ? 'success.main'
-                                  : 'text.secondary',
+                              color: recipe.image
+                                ? costData.totalCost > 0
+                                  ? 'rgba(255, 255, 255, 0.95)'
+                                  : 'rgba(255, 255, 255, 0.7)'
+                                : costData.totalCost > 0
+                                ? 'success.main'
+                                : 'text.secondary',
                               display: 'flex',
                               alignItems: 'center',
                               gap: 0.5,
